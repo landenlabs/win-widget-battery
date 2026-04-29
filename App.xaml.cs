@@ -1,0 +1,104 @@
+﻿// Copyright (c) 2026
+using System.Windows;
+using WinWidgetBattery.Models;
+using WinWidgetBattery.Services;
+using WinWidgetBattery.Windows;
+
+namespace WinWidgetBattery;
+
+public partial class App : System.Windows.Application
+{
+    private static Mutex? _mutex;
+    private TrayIconService? _trayIcon;
+    private readonly List<WidgetWindow> _widgetWindows = [];
+    private readonly BatteryService _batteryService = new();
+
+    public static AppSettings Settings { get; private set; } = new();
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        _mutex = new Mutex(true, "WinWidgetBattery_UniqueInstance_v1", out bool isNew);
+        if (!isNew)
+        {
+            System.Windows.MessageBox.Show("WinWidgetBattery is already running.",
+                "WinWidgetBattery", MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown();
+            return;
+        }
+
+        Settings = SettingsService.Load();
+
+        // Ensure at least one widget exists
+        if (Settings.Widgets.Count == 0)
+        {
+            Settings.Widgets.Add(new WidgetSettings());
+        }
+
+        foreach (var widget in Settings.Widgets)
+            CreateAndShowWidget(widget);
+
+        _trayIcon = new TrayIconService(
+            onAddWidget:      AddWidget,
+            getWidgets:       () => Settings.Widgets,
+            onWidgetSettings: id => _widgetWindows.FirstOrDefault(w => w.WidgetId == id)?.OpenSettings(),
+            onWidgetRemove:   RemoveWidget,
+            onAbout:          OpenAbout,
+            onExit:           Shutdown
+        );
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _trayIcon?.Dispose();
+        _mutex?.ReleaseMutex();
+        _mutex?.Dispose();
+        base.OnExit(e);
+    }
+
+    private void CreateAndShowWidget(WidgetSettings settings)
+    {
+        var window = new WidgetWindow(settings, _batteryService);
+        _widgetWindows.Add(window);
+        window.Show();
+    }
+
+    public void AddWidget()
+    {
+        var newWidget = new WidgetSettings
+        {
+            X = 100 + (_widgetWindows.Count * 20),
+            Y = 100 + (_widgetWindows.Count * 20)
+        };
+        Settings.Widgets.Add(newWidget);
+        SettingsService.Save(Settings);
+        CreateAndShowWidget(newWidget);
+    }
+
+    public void RemoveWidget(string widgetId)
+    {
+        var window = _widgetWindows.FirstOrDefault(w => w.WidgetId == widgetId);
+        if (window != null)
+        {
+            _widgetWindows.Remove(window);
+            window.Close();
+        }
+
+        var settings = Settings.Widgets.FirstOrDefault(w => w.Id == widgetId);
+        if (settings != null)
+        {
+            Settings.Widgets.Remove(settings);
+            SettingsService.Save(Settings);
+        }
+    }
+
+    private void OpenAbout()
+    {
+        System.Windows.MessageBox.Show(
+            "Battery Widget v1.0.0\n\nA desktop widget that displays current battery status and charge level.",
+            "About Battery Widget",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+}
