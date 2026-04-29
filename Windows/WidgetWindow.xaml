@@ -68,16 +68,16 @@
             CornerRadius="10"
             Padding="20,14,20,14"
             Cursor="Hand"
-            MouseLeftButtonDown="Widget_MouseLeftButtonDown"
-            MouseMove="Widget_MouseMove"
-            MouseLeftButtonUp="Widget_MouseLeftButtonUp"
+            MouseLeftButtonDown="Widget_PreviewMouseLeftButtonDown"
+            MouseMove="Widget_PreviewMouseMove"
+            MouseLeftButtonUp="Widget_PreviewMouseLeftButtonUp"
             MouseEnter="Widget_MouseEnter"
             MouseLeave="Widget_MouseLeave">
 
-        <StackPanel Orientation="Vertical">
+        <StackPanel Orientation="Vertical" IsHitTestVisible="False">
 
             <!-- Header: title on left, icon buttons on right -->
-            <Grid x:Name="TitleBarGrid" Height="22" Margin="0,0,0,8">
+            <Grid x:Name="TitleBarGrid" Height="22" Margin="0,0,0,8" IsHitTestVisible="True">
                 <TextBlock x:Name="TitleText"
                            Text="🔋 Battery"
                            Foreground="#66FFFFFF"
@@ -87,59 +87,66 @@
                 <StackPanel x:Name="IconPanel"
                             Orientation="Horizontal"
                             HorizontalAlignment="Right"
-                            Visibility="Collapsed">
+                            Visibility="Collapsed"
+                            IsHitTestVisible="True">
                     <Button Style="{StaticResource IconButtonStyle}"
                             Content="⚙"
                             ToolTip="Settings"
-                            Click="Settings_Click"/>
+                            Click="Settings_Click"
+                            IsHitTestVisible="True"/>
                     <Button Style="{StaticResource IconButtonStyle}"
                             Content="?"
                             ToolTip="About"
                             FontWeight="Bold"
                             Margin="3,0,0,0"
-                            Click="About_Click"/>
+                            Click="About_Click"
+                            IsHitTestVisible="True"/>
                 </StackPanel>
             </Grid>
 
-            <Rectangle x:Name="TitleBarSeparator" Height="1" Fill="#33FFFFFF" Margin="0,0,0,8"/>
+            <Rectangle x:Name="TitleBarSeparator" Height="1" Fill="#33FFFFFF" Margin="0,0,0,8" IsHitTestVisible="False"/>
 
             <!-- Battery Display -->
-            <Grid Margin="0,6">
+            <Grid Margin="0,6" IsHitTestVisible="False">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Battery Percentage and Status -->
-                <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
+                <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" IsHitTestVisible="False">
                     <TextBlock x:Name="BatteryDisplay"
                                Text="🔋 ---%"
                                Foreground="#FFCDD6F4"
                                FontSize="24"
                                FontWeight="Bold"
-                               FontFamily="Consolas, Courier New"/>
+                               FontFamily="Consolas, Courier New"
+                               IsHitTestVisible="False"/>
                     <TextBlock x:Name="StatusText"
                                Text="Status: Unknown"
                                Foreground="#FF8787A1"
                                FontSize="10"
-                               Margin="0,4,0,0"/>
+                               Margin="0,4,0,0"
+                               IsHitTestVisible="False"/>
                     <TextBlock x:Name="TimeRemainingText"
                                Text=""
                                Foreground="#FF8787A1"
                                FontSize="9"
-                               Margin="0,2,0,0"/>
+                               Margin="0,2,0,0"
+                               IsHitTestVisible="False"/>
                 </StackPanel>
 
                 <!-- Battery Bar -->
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
-                    <Border Background="#33454570" CornerRadius="4" Height="20" Width="80">
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0" IsHitTestVisible="False">
+                    <Border Background="#33454570" CornerRadius="4" Height="20" Width="80" IsHitTestVisible="False">
                         <Border x:Name="BatteryBar"
                                 Background="#FF00AA00"
                                 CornerRadius="2"
                                 Height="18"
                                 Margin="1"
                                 HorizontalAlignment="Left"
-                                Width="78"/>
+                                Width="78"
+                                IsHitTestVisible="False"/>
                     </Border>
                 </StackPanel>
             </Grid>

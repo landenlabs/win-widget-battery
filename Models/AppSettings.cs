@@ -51,4 +51,16 @@ public class WidgetSettings
     public int Y { get; set; } = 100;
     public int UpdateInterval { get; set; } = 1000; // milliseconds
     public bool ShowTimeRemaining { get; set; } = true;
+
+    /// <summary>
+    /// Stores positions for different display configurations
+    /// Key: ConfigurationHash, Value: DisplayPosition
+    /// </summary>
+    public Dictionary<string, DisplayPosition> DisplayPositions { get; set; } = [];
+
+    /// <summary>
+    /// Hash of the last known display configuration
+    /// Used to determine if display setup has changed
+    /// </summary>
+    public string LastDisplayConfigurationHash { get; set; } = string.Empty;
 }

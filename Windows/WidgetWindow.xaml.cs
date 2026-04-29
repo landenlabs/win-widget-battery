@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using WinWidgetBattery.Models;
 using WinWidgetBattery.Services;
+using ColorConverter = System.Windows.Media.ColorConverter;
 
 namespace WinWidgetBattery.Windows;
 
@@ -12,10 +13,8 @@ public partial class WidgetWindow : Window
     private readonly WidgetSettings _settings;
     private readonly BatteryService _batteryService;
     private System.Windows.Threading.DispatcherTimer? _updateTimer;
-    private bool _isDragging;
-    private System.Windows.Point _dragStart;
-    private double _windowStartLeft;
-    private double _windowStartTop;
+    private System.Windows.Threading.DispatcherTimer? _displayCheckTimer;
+    private DisplayConfiguration _currentDisplayConfiguration;
 
     public string WidgetId => _settings.Id;
 
@@ -26,10 +25,16 @@ public partial class WidgetWindow : Window
         _settings = settings;
         _batteryService = batteryService;
 
-        Left = _settings.X;
-        Top = _settings.Y;
+        // Get current display configuration
+        _currentDisplayConfiguration = DisplayService.GetCurrentDisplayConfiguration();
+
+        // Get position for current display configuration
+        var (x, y) = DisplayService.GetDisplayPosition(settings, _currentDisplayConfiguration);
+        Left = x;
+        Top = y;
 
         InitializeUpdateTimer();
+        InitializeDisplayCheckTimer();
         UpdateBatteryDisplay();
     }
 
@@ -39,6 +44,37 @@ public partial class WidgetWindow : Window
         _updateTimer.Interval = TimeSpan.FromMilliseconds(_settings.UpdateInterval);
         _updateTimer.Tick += (s, e) => UpdateBatteryDisplay();
         _updateTimer.Start();
+    }
+
+    /// <summary>
+    /// Monitors display configuration changes (monitor plugged/unplugged)
+    /// </summary>
+    private void InitializeDisplayCheckTimer()
+    {
+        _displayCheckTimer = new System.Windows.Threading.DispatcherTimer();
+        _displayCheckTimer.Interval = TimeSpan.FromSeconds(2); // Check every 2 seconds
+        _displayCheckTimer.Tick += (s, e) => CheckDisplayConfigurationChanged();
+        _displayCheckTimer.Start();
+    }
+
+    /// <summary>
+    /// Checks if display configuration has changed (new monitor plugged in, etc.)
+    /// </summary>
+    private void CheckDisplayConfigurationChanged()
+    {
+        var newConfig = DisplayService.GetCurrentDisplayConfiguration();
+
+        if (newConfig.ConfigurationHash != _currentDisplayConfiguration.ConfigurationHash)
+        {
+            // Display configuration changed - apply saved position for new configuration
+            _currentDisplayConfiguration = newConfig;
+
+            var (x, y) = DisplayService.GetDisplayPosition(_settings, _currentDisplayConfiguration);
+
+            // Move to the saved position for this display configuration
+            Left = x;
+            Top = y;
+        }
     }
 
     private void UpdateBatteryDisplay()
@@ -88,48 +124,110 @@ public partial class WidgetWindow : Window
         WidgetBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xCC, 0x1E, 0x1E, 0x2E));
     }
 
-    private void Widget_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void Widget_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        _isDragging = true;
-        _dragStart = e.GetPosition(null);
-        _windowStartLeft = Left;
-        _windowStartTop = Top;
-        CaptureMouse();
+        // Check if click is on an interactive element (button)
+        if (IsClickOnInteractiveElement(e.OriginalSource))
+        {
+            LogEvent("MouseLeftButtonDown on interactive element - skipping drag");
+            return;
+        }
+
+        LogEvent("MouseLeftButtonDown - Starting DragMove");
+
+        // Use WPF's built-in DragMove method - this is what the time widget uses
+        try
+        {
+            DragMove();
+            LogEvent("DragMove completed");
+            SaveCurrentPosition();
+        }
+        catch (Exception ex)
+        {
+            LogEvent($"DragMove exception: {ex.Message}");
+        }
+
         e.Handled = true;
     }
 
-    private void Widget_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    private void Widget_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (_isDragging && e.LeftButton == MouseButtonState.Pressed)
-        {
-            var currentPos = e.GetPosition(null);
-            Left = _windowStartLeft + (currentPos.X - _dragStart.X);
-            Top = _windowStartTop + (currentPos.Y - _dragStart.Y);
-        }
+        // DragMove handles all the movement, we don't need to do anything here
     }
 
-    private void Widget_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private void Widget_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (_isDragging)
+        // DragMove handles release, we just save position
+        LogEvent("MouseLeftButtonUp");
+        e.Handled = true;
+    }
+
+    private void SaveCurrentPosition()
+    {
+        LogEvent($"Saving position - Config: {_currentDisplayConfiguration.ConfigurationHash}, X: {(int)Left}, Y: {(int)Top}");
+
+        // Save the current position for the current display configuration
+        DisplayService.SaveDisplayPosition(_settings, _currentDisplayConfiguration, (int)Left, (int)Top);
+        SettingsService.Save(App.Settings);
+    }
+
+    /// <summary>
+    /// Checks if the click source is an interactive element (button, etc)
+    /// </summary>
+    private bool IsClickOnInteractiveElement(object? source)
+    {
+        // Check if click is on a button or other interactive control
+        if (source is System.Windows.Controls.Button)
         {
-            _isDragging = false;
-            ReleaseMouseCapture();
-
-            _settings.X = (int)Left;
-            _settings.Y = (int)Top;
-            SettingsService.Save(App.Settings);
-
-            e.Handled = true;
+            LogEvent("IsClickOnInteractiveElement: Button detected");
+            return true;
         }
+
+        // Check if the source element is inside the IconPanel (buttons area)
+        if (source is System.Windows.FrameworkElement fe)
+        {
+            var parent = System.Windows.Media.VisualTreeHelper.GetParent(fe);
+            while (parent != null)
+            {
+                if (parent == IconPanel)
+                {
+                    LogEvent("IsClickOnInteractiveElement: Inside IconPanel");
+                    return true;
+                }
+                parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Logs drag-related events for debugging
+    /// </summary>
+    private void LogEvent(string message)
+    {
+        var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+        System.Diagnostics.Debug.WriteLine($"[{timestamp}] [DragWidget] {message}");
     }
 
     public void OpenSettings()
     {
-        System.Windows.MessageBox.Show(
-            "Settings for Battery Widget\n\nUpdate Interval: " + _settings.UpdateInterval + "ms\n\nMore options coming soon!",
-            "Widget Settings",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        var dlg = new SettingsWindow(_settings, livePreviewTarget: this);
+        if (dlg.ShowDialog() == true)
+        {
+            // Settings were saved, refresh display if needed
+            UpdateBatteryDisplay();
+        }
+    }
+
+    public void ApplyBackground(string hexColor, double opacity)
+    {
+        try
+        {
+            var color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(hexColor);
+            WidgetBorder.Background = new SolidColorBrush(color) { Opacity = opacity };
+        }
+        catch { }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
@@ -139,11 +237,7 @@ public partial class WidgetWindow : Window
 
     private void About_Click(object sender, RoutedEventArgs e)
     {
-        System.Windows.MessageBox.Show(
-            "Battery Widget v1.0.0\n\nA desktop widget that displays current battery status and charge level.",
-            "About Battery Widget",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        new AboutWindow() { Owner = this }.ShowDialog();
     }
 
     private void Remove_Click(object sender, RoutedEventArgs e)
