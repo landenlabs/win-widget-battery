@@ -15,6 +15,8 @@ public partial class WidgetWindow : Window
     private System.Windows.Threading.DispatcherTimer? _updateTimer;
     private System.Windows.Threading.DispatcherTimer? _displayCheckTimer;
     private DisplayConfiguration _currentDisplayConfiguration;
+    private string _bgColorHex = "#1E1E2E";
+    private double _bgOpacity = 0.80;
 
     public string WidgetId => _settings.Id;
 
@@ -115,13 +117,19 @@ public partial class WidgetWindow : Window
     private void Widget_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
     {
         IconPanel.Visibility = Visibility.Visible;
-        WidgetBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xDD, 0x1E, 0x1E, 0x2E));
+        ApplyBackgroundInternal(Math.Min(1.0, _bgOpacity + 0.07));
     }
 
     private void Widget_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
     {
         IconPanel.Visibility = Visibility.Collapsed;
-        WidgetBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xCC, 0x1E, 0x1E, 0x2E));
+        ApplyBackgroundInternal(_bgOpacity);
+    }
+
+    private void ApplyBackgroundInternal(double opacity)
+    {
+        var color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(_bgColorHex);
+        WidgetBorder.Background = new SolidColorBrush(color) { Opacity = opacity };
     }
 
     private void Widget_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -224,8 +232,9 @@ public partial class WidgetWindow : Window
     {
         try
         {
-            var color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(hexColor);
-            WidgetBorder.Background = new SolidColorBrush(color) { Opacity = opacity };
+            _bgColorHex = hexColor;
+            _bgOpacity = opacity;
+            ApplyBackgroundInternal(opacity);
         }
         catch { }
     }
