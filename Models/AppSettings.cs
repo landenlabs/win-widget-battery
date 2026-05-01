@@ -50,6 +50,11 @@ public class WidgetSettings
     public int X { get; set; } = 100;
     public int Y { get; set; } = 100;
     public int UpdateInterval { get; set; } = 1000; // milliseconds
+    public bool ShowTitle { get; set; } = true;
+    public bool ShowBatteryIcon { get; set; } = true;
+    public bool ShowPercentage { get; set; } = true;
+    public bool ShowColorBar { get; set; } = true;
+    public bool ShowStatusText { get; set; } = true;
     public bool ShowTimeRemaining { get; set; } = true;
     public bool EmbedInWallpaper { get; set; } = true;
     public string BackgroundColor { get; set; } = "#1E1E2E";

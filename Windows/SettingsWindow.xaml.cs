@@ -67,12 +67,62 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         set { _embedInWallpaper = value; OnPropertyChanged(); }
     }
 
+    // ── Component visibility ─────────────────────────────────────────────────
+
+    private bool _showTitle;
+    public bool ShowTitle
+    {
+        get => _showTitle;
+        set { _showTitle = value; OnPropertyChanged(); LivePreviewVisibility(); }
+    }
+
+    private bool _showBatteryIcon;
+    public bool ShowBatteryIcon
+    {
+        get => _showBatteryIcon;
+        set { _showBatteryIcon = value; OnPropertyChanged(); LivePreviewVisibility(); }
+    }
+
+    private bool _showPercentage;
+    public bool ShowPercentage
+    {
+        get => _showPercentage;
+        set { _showPercentage = value; OnPropertyChanged(); LivePreviewVisibility(); }
+    }
+
+    private bool _showColorBar;
+    public bool ShowColorBar
+    {
+        get => _showColorBar;
+        set { _showColorBar = value; OnPropertyChanged(); LivePreviewVisibility(); }
+    }
+
+    private bool _showStatusText;
+    public bool ShowStatusText
+    {
+        get => _showStatusText;
+        set { _showStatusText = value; OnPropertyChanged(); LivePreviewVisibility(); }
+    }
+
+    private bool _showTimeRemaining;
+    public bool ShowTimeRemaining
+    {
+        get => _showTimeRemaining;
+        set { _showTimeRemaining = value; OnPropertyChanged(); LivePreviewVisibility(); }
+    }
+
     // ── Originals for Cancel restore ────────────────────────────────────────
 
     private readonly string _origBgColor;
     private readonly int _origBgOpacityPercent;
     private readonly int _origUpdateInterval;
     private readonly int _origFontScalePercent;
+    private readonly bool _origShowTitle;
+    private readonly bool _origShowBatteryIcon;
+    private readonly bool _origShowPercentage;
+    private readonly bool _origShowColorBar;
+    private readonly bool _origShowStatusText;
+    private readonly bool _origShowTimeRemaining;
 
     // ── Constructor ──────────────────────────────────────────────────────────
 
@@ -90,13 +140,25 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         if (_origBgOpacityPercent == 0) _origBgOpacityPercent = 80;
         _origUpdateInterval   = widget.UpdateInterval;
         _origFontScalePercent = widget.FontScalePercent > 0 ? widget.FontScalePercent : 100;
+        _origShowTitle        = widget.ShowTitle;
+        _origShowBatteryIcon  = widget.ShowBatteryIcon;
+        _origShowPercentage   = widget.ShowPercentage;
+        _origShowColorBar     = widget.ShowColorBar;
+        _origShowStatusText   = widget.ShowStatusText;
+        _origShowTimeRemaining = widget.ShowTimeRemaining;
 
         // Load working copies
-        _bgColorHex       = _origBgColor;
-        _bgOpacityPercent = _origBgOpacityPercent;
-        _updateInterval   = widget.UpdateInterval;
-        _fontScalePercent = _origFontScalePercent;
-        _embedInWallpaper = widget.EmbedInWallpaper;
+        _bgColorHex        = _origBgColor;
+        _bgOpacityPercent  = _origBgOpacityPercent;
+        _updateInterval    = widget.UpdateInterval;
+        _fontScalePercent  = _origFontScalePercent;
+        _embedInWallpaper  = widget.EmbedInWallpaper;
+        _showTitle         = widget.ShowTitle;
+        _showBatteryIcon   = widget.ShowBatteryIcon;
+        _showPercentage    = widget.ShowPercentage;
+        _showColorBar      = widget.ShowColorBar;
+        _showStatusText    = widget.ShowStatusText;
+        _showTimeRemaining = widget.ShowTimeRemaining;
 
         OnPropertyChanged(nameof(BgColorHex));
         OnPropertyChanged(nameof(BgColorBrush));
@@ -104,6 +166,12 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         OnPropertyChanged(nameof(UpdateInterval));
         OnPropertyChanged(nameof(FontScalePercent));
         OnPropertyChanged(nameof(EmbedInWallpaper));
+        OnPropertyChanged(nameof(ShowTitle));
+        OnPropertyChanged(nameof(ShowBatteryIcon));
+        OnPropertyChanged(nameof(ShowPercentage));
+        OnPropertyChanged(nameof(ShowColorBar));
+        OnPropertyChanged(nameof(ShowStatusText));
+        OnPropertyChanged(nameof(ShowTimeRemaining));
 
         UpdateColorHexLabel();
     }
@@ -136,6 +204,13 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         UpdateColorHexLabel();
     }
 
+    private void LivePreviewVisibility()
+    {
+        _livePreviewTarget?.ApplyVisibilitySettings(
+            _showTitle, _showBatteryIcon, _showPercentage,
+            _showColorBar, _showStatusText, _showTimeRemaining);
+    }
+
     private void UpdateColorHexLabel()
     {
         ColorHexLabel.Text = _bgColorHex.ToUpperInvariant();
@@ -150,6 +225,12 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _widget.BackgroundOpacity = _bgOpacityPercent / 100.0;
         _widget.FontScalePercent  = _fontScalePercent;
         _widget.EmbedInWallpaper  = _embedInWallpaper;
+        _widget.ShowTitle         = _showTitle;
+        _widget.ShowBatteryIcon   = _showBatteryIcon;
+        _widget.ShowPercentage    = _showPercentage;
+        _widget.ShowColorBar      = _showColorBar;
+        _widget.ShowStatusText    = _showStatusText;
+        _widget.ShowTimeRemaining = _showTimeRemaining;
         SettingsService.Save(App.Settings);
 
         DialogResult = true;
@@ -160,6 +241,9 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     {
         _livePreviewTarget?.ApplyBackground(_origBgColor, _origBgOpacityPercent / 100.0);
         _livePreviewTarget?.ApplyFontScale(_origFontScalePercent);
+        _livePreviewTarget?.ApplyVisibilitySettings(
+            _origShowTitle, _origShowBatteryIcon, _origShowPercentage,
+            _origShowColorBar, _origShowStatusText, _origShowTimeRemaining);
 
         DialogResult = false;
         Close();

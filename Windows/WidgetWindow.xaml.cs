@@ -50,6 +50,7 @@ public partial class WidgetWindow : Window
 
         ApplyBackgroundInternal(_bgOpacity);
         ApplyFontScale(_settings.FontScalePercent > 0 ? _settings.FontScalePercent : 100);
+        ApplyVisibilitySettings();
 
         if (_settings.EmbedInWallpaper)
         {
@@ -104,10 +105,12 @@ public partial class WidgetWindow : Window
 
         Dispatcher.Invoke(() =>
         {
-            BatteryDisplay.Text = $"{batteryInfo.GetStatusEmoji()} {batteryInfo.BatteryPercentage}%";
+            BatteryIconText.Text = batteryInfo.GetStatusEmoji();
+            BatteryPercentText.Text = $" {batteryInfo.BatteryPercentage}%";
             StatusText.Text = $"Status: {batteryInfo.Status}";
 
-            if (batteryInfo.TimeRemaining.HasValue && batteryInfo.TimeRemaining.Value.TotalSeconds > 0 && _settings.ShowTimeRemaining)
+            bool hasTime = batteryInfo.TimeRemaining.HasValue && batteryInfo.TimeRemaining.Value.TotalSeconds > 0;
+            if (hasTime && _settings.ShowTimeRemaining)
             {
                 var time = batteryInfo.TimeRemaining.Value;
                 if (time.TotalHours >= 1)
@@ -116,10 +119,12 @@ public partial class WidgetWindow : Window
                     TimeRemainingText.Text = $"Remaining: {time.Minutes}m {time.Seconds}s";
                 else
                     TimeRemainingText.Text = $"Remaining: {time.Seconds}s";
+                TimeRemainingText.Visibility = Visibility.Visible;
             }
             else
             {
                 TimeRemainingText.Text = "";
+                TimeRemainingText.Visibility = Visibility.Collapsed;
             }
 
             var percentage = batteryInfo.BatteryPercentage / 100.0;
@@ -133,11 +138,29 @@ public partial class WidgetWindow : Window
     public void ApplyFontScale(int percent)
     {
         double factor = Math.Max(0.25, percent / 100.0);
-        BatteryDisplay.FontSize = Math.Max(8, 24 * factor);
+        BatteryIconText.FontSize = Math.Max(8, 24 * factor);
+        BatteryPercentText.FontSize = Math.Max(8, 24 * factor);
         StatusText.FontSize = Math.Max(6, 10 * factor);
         TimeRemainingText.FontSize = Math.Max(6, 9 * factor);
         TitleText.FontSize = Math.Max(6, 11 * factor);
     }
+
+    public void ApplyVisibilitySettings(bool showTitle, bool showBatteryIcon, bool showPercentage,
+        bool showColorBar, bool showStatusText, bool showTimeRemaining)
+    {
+        TitleSection.Visibility       = showTitle       ? Visibility.Visible : Visibility.Collapsed;
+        BatteryIconText.Visibility    = showBatteryIcon ? Visibility.Visible : Visibility.Collapsed;
+        BatteryPercentText.Visibility = showPercentage  ? Visibility.Visible : Visibility.Collapsed;
+        BatteryBarContainer.Visibility = showColorBar   ? Visibility.Visible : Visibility.Collapsed;
+        StatusText.Visibility         = showStatusText  ? Visibility.Visible : Visibility.Collapsed;
+        if (!showTimeRemaining)
+            TimeRemainingText.Visibility = Visibility.Collapsed;
+        // showTimeRemaining=true: UpdateBatteryDisplay manages visibility based on data availability
+    }
+
+    private void ApplyVisibilitySettings() =>
+        ApplyVisibilitySettings(_settings.ShowTitle, _settings.ShowBatteryIcon, _settings.ShowPercentage,
+            _settings.ShowColorBar, _settings.ShowStatusText, _settings.ShowTimeRemaining);
 
     // ── Hover ────────────────────────────────────────────────────────────────
 
@@ -241,6 +264,7 @@ public partial class WidgetWindow : Window
             _bgOpacity = _settings.BackgroundOpacity;
             ApplyBackgroundInternal(_bgOpacity);
             ApplyFontScale(_settings.FontScalePercent);
+            ApplyVisibilitySettings();
             UpdateBatteryDisplay();
         }
         else
