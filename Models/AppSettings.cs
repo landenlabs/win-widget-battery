@@ -51,6 +51,10 @@ public class WidgetSettings
     public int Y { get; set; } = 100;
     public int UpdateInterval { get; set; } = 1000; // milliseconds
     public bool ShowTimeRemaining { get; set; } = true;
+    public bool EmbedInWallpaper { get; set; } = true;
+    public string BackgroundColor { get; set; } = "#1E1E2E";
+    public double BackgroundOpacity { get; set; } = 0.80;
+    public int FontScalePercent { get; set; } = 100;
 
     /// <summary>
     /// Stores positions for different display configurations

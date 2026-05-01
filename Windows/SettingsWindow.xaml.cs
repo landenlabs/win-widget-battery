@@ -16,7 +16,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
     // ── Bindable properties ──────────────────────────────────────────────────
 
-    private string _bgColorHex = "#000000";
+    private string _bgColorHex = "#1E1E2E";
     public string BgColorHex
     {
         get => _bgColorHex;
@@ -53,11 +53,26 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         set { _updateInterval = value; OnPropertyChanged(); }
     }
 
+    private int _fontScalePercent;
+    public int FontScalePercent
+    {
+        get => _fontScalePercent;
+        set { _fontScalePercent = value; OnPropertyChanged(); _livePreviewTarget?.ApplyFontScale(value); }
+    }
+
+    private bool _embedInWallpaper;
+    public bool EmbedInWallpaper
+    {
+        get => _embedInWallpaper;
+        set { _embedInWallpaper = value; OnPropertyChanged(); }
+    }
+
     // ── Originals for Cancel restore ────────────────────────────────────────
 
     private readonly string _origBgColor;
     private readonly int _origBgOpacityPercent;
     private readonly int _origUpdateInterval;
+    private readonly int _origFontScalePercent;
 
     // ── Constructor ──────────────────────────────────────────────────────────
 
@@ -70,19 +85,25 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         Topmost = true;
 
         // Snapshot originals so Cancel can restore the live preview
-        _origBgColor = _widget.X.ToString(); // Placeholder - we'll use hex from AppSettings if available
-        _origBgOpacityPercent = 100; // Placeholder
-        _origUpdateInterval = _widget.UpdateInterval;
+        _origBgColor          = string.IsNullOrEmpty(widget.BackgroundColor) ? "#1E1E2E" : widget.BackgroundColor;
+        _origBgOpacityPercent = (int)Math.Round(widget.BackgroundOpacity * 100);
+        if (_origBgOpacityPercent == 0) _origBgOpacityPercent = 80;
+        _origUpdateInterval   = widget.UpdateInterval;
+        _origFontScalePercent = widget.FontScalePercent > 0 ? widget.FontScalePercent : 100;
 
         // Load working copies
-        _bgColorHex = "#1E1E2E"; // Default dark color
-        _bgOpacityPercent = 80; // 80% opacity
-        _updateInterval = _widget.UpdateInterval;
+        _bgColorHex       = _origBgColor;
+        _bgOpacityPercent = _origBgOpacityPercent;
+        _updateInterval   = widget.UpdateInterval;
+        _fontScalePercent = _origFontScalePercent;
+        _embedInWallpaper = widget.EmbedInWallpaper;
 
         OnPropertyChanged(nameof(BgColorHex));
         OnPropertyChanged(nameof(BgColorBrush));
         OnPropertyChanged(nameof(BgOpacityPercent));
         OnPropertyChanged(nameof(UpdateInterval));
+        OnPropertyChanged(nameof(FontScalePercent));
+        OnPropertyChanged(nameof(EmbedInWallpaper));
 
         UpdateColorHexLabel();
     }
@@ -124,8 +145,11 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
     private void OK_Click(object sender, RoutedEventArgs e)
     {
-        // Save settings to widget
-        _widget.UpdateInterval = _updateInterval;
+        _widget.UpdateInterval    = _updateInterval;
+        _widget.BackgroundColor   = _bgColorHex;
+        _widget.BackgroundOpacity = _bgOpacityPercent / 100.0;
+        _widget.FontScalePercent  = _fontScalePercent;
+        _widget.EmbedInWallpaper  = _embedInWallpaper;
         SettingsService.Save(App.Settings);
 
         DialogResult = true;
@@ -134,8 +158,8 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
-        // Revert any live-preview changes
         _livePreviewTarget?.ApplyBackground(_origBgColor, _origBgOpacityPercent / 100.0);
+        _livePreviewTarget?.ApplyFontScale(_origFontScalePercent);
 
         DialogResult = false;
         Close();

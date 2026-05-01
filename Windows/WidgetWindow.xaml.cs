@@ -18,6 +18,10 @@ public partial class WidgetWindow : Window
     private string _bgColorHex = "#1E1E2E";
     private double _bgOpacity = 0.80;
 
+    private bool _isEmbedded;
+    private bool _isDragging;
+    private System.Windows.Point _dragOffset;
+
     public string WidgetId => _settings.Id;
 
     public WidgetWindow(WidgetSettings settings, BatteryService batteryService)
@@ -27,10 +31,10 @@ public partial class WidgetWindow : Window
         _settings = settings;
         _batteryService = batteryService;
 
-        // Get current display configuration
-        _currentDisplayConfiguration = DisplayService.GetCurrentDisplayConfiguration();
+        _bgColorHex = string.IsNullOrEmpty(settings.BackgroundColor) ? "#1E1E2E" : settings.BackgroundColor;
+        _bgOpacity = settings.BackgroundOpacity > 0 ? settings.BackgroundOpacity : 0.80;
 
-        // Get position for current display configuration
+        _currentDisplayConfiguration = DisplayService.GetCurrentDisplayConfiguration();
         var (x, y) = DisplayService.GetDisplayPosition(settings, _currentDisplayConfiguration);
         Left = x;
         Top = y;
@@ -38,6 +42,27 @@ public partial class WidgetWindow : Window
         InitializeUpdateTimer();
         InitializeDisplayCheckTimer();
         UpdateBatteryDisplay();
+    }
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+
+        ApplyBackgroundInternal(_bgOpacity);
+        ApplyFontScale(_settings.FontScalePercent > 0 ? _settings.FontScalePercent : 100);
+
+        if (_settings.EmbedInWallpaper)
+        {
+            _isEmbedded = DesktopService.EmbedInWallpaper(this);
+            if (_isEmbedded)
+                DesktopService.MoveEmbeddedWindow(this, (int)Left, (int)Top);
+            else
+                DesktopService.SetAlwaysOnBottom(this);
+        }
+        else
+        {
+            DesktopService.SetAlwaysOnBottom(this);
+        }
     }
 
     private void InitializeUpdateTimer()
@@ -48,34 +73,28 @@ public partial class WidgetWindow : Window
         _updateTimer.Start();
     }
 
-    /// <summary>
-    /// Monitors display configuration changes (monitor plugged/unplugged)
-    /// </summary>
     private void InitializeDisplayCheckTimer()
     {
         _displayCheckTimer = new System.Windows.Threading.DispatcherTimer();
-        _displayCheckTimer.Interval = TimeSpan.FromSeconds(2); // Check every 2 seconds
+        _displayCheckTimer.Interval = TimeSpan.FromSeconds(2);
         _displayCheckTimer.Tick += (s, e) => CheckDisplayConfigurationChanged();
         _displayCheckTimer.Start();
     }
 
-    /// <summary>
-    /// Checks if display configuration has changed (new monitor plugged in, etc.)
-    /// </summary>
     private void CheckDisplayConfigurationChanged()
     {
         var newConfig = DisplayService.GetCurrentDisplayConfiguration();
-
         if (newConfig.ConfigurationHash != _currentDisplayConfiguration.ConfigurationHash)
         {
-            // Display configuration changed - apply saved position for new configuration
             _currentDisplayConfiguration = newConfig;
-
             var (x, y) = DisplayService.GetDisplayPosition(_settings, _currentDisplayConfiguration);
-
-            // Move to the saved position for this display configuration
-            Left = x;
-            Top = y;
+            if (_isEmbedded)
+                DesktopService.MoveEmbeddedWindow(this, x, y);
+            else
+            {
+                Left = x;
+                Top = y;
+            }
         }
     }
 
@@ -85,13 +104,9 @@ public partial class WidgetWindow : Window
 
         Dispatcher.Invoke(() =>
         {
-            // Update battery percentage and emoji
             BatteryDisplay.Text = $"{batteryInfo.GetStatusEmoji()} {batteryInfo.BatteryPercentage}%";
-
-            // Update status text
             StatusText.Text = $"Status: {batteryInfo.Status}";
 
-            // Update time remaining
             if (batteryInfo.TimeRemaining.HasValue && batteryInfo.TimeRemaining.Value.TotalSeconds > 0 && _settings.ShowTimeRemaining)
             {
                 var time = batteryInfo.TimeRemaining.Value;
@@ -107,12 +122,24 @@ public partial class WidgetWindow : Window
                 TimeRemainingText.Text = "";
             }
 
-            // Update battery bar color and width
             var percentage = batteryInfo.BatteryPercentage / 100.0;
             BatteryBar.Width = 78 * percentage;
             BatteryBar.Background = batteryInfo.GetStatusColor();
         });
     }
+
+    // ── Font scale ───────────────────────────────────────────────────────────
+
+    public void ApplyFontScale(int percent)
+    {
+        double factor = Math.Max(0.25, percent / 100.0);
+        BatteryDisplay.FontSize = Math.Max(8, 24 * factor);
+        StatusText.FontSize = Math.Max(6, 10 * factor);
+        TimeRemainingText.FontSize = Math.Max(6, 9 * factor);
+        TitleText.FontSize = Math.Max(6, 11 * factor);
+    }
+
+    // ── Hover ────────────────────────────────────────────────────────────────
 
     private void Widget_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
     {
@@ -128,103 +155,98 @@ public partial class WidgetWindow : Window
 
     private void ApplyBackgroundInternal(double opacity)
     {
-        var color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(_bgColorHex);
-        WidgetBorder.Background = new SolidColorBrush(color) { Opacity = opacity };
-    }
-
-    private void Widget_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        // Check if click is on an interactive element (button)
-        if (IsClickOnInteractiveElement(e.OriginalSource))
-        {
-            LogEvent("MouseLeftButtonDown on interactive element - skipping drag");
-            return;
-        }
-
-        LogEvent("MouseLeftButtonDown - Starting DragMove");
-
-        // Use WPF's built-in DragMove method - this is what the time widget uses
         try
         {
-            DragMove();
-            LogEvent("DragMove completed");
+            var color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(_bgColorHex);
+            WidgetBorder.Background = new SolidColorBrush(color) { Opacity = opacity };
+        }
+        catch { }
+    }
+
+    // ── Dragging ─────────────────────────────────────────────────────────────
+
+    private void Widget_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (IsClickOnInteractiveElement(e.OriginalSource))
+            return;
+
+        if (_isEmbedded)
+        {
+            var cursor = DesktopService.GetCursorPosition();
+            var bounds = DesktopService.GetWindowBounds(this);
+            _dragOffset = new System.Windows.Point(cursor.X - bounds.Left, cursor.Y - bounds.Top);
+            _isDragging = true;
+            WidgetBorder.CaptureMouse();
+        }
+        else
+        {
+            try { DragMove(); } catch { }
             SaveCurrentPosition();
         }
-        catch (Exception ex)
+        e.Handled = true;
+    }
+
+    private void Widget_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (!_isDragging || !_isEmbedded) return;
+        var cursor = DesktopService.GetCursorPosition();
+        int newX = cursor.X - (int)_dragOffset.X;
+        int newY = cursor.Y - (int)_dragOffset.Y;
+        DesktopService.MoveEmbeddedWindow(this, newX, newY);
+    }
+
+    private void Widget_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isDragging) return;
+        _isDragging = false;
+        WidgetBorder.ReleaseMouseCapture();
+        if (_isEmbedded)
         {
-            LogEvent($"DragMove exception: {ex.Message}");
+            var bounds = DesktopService.GetWindowBounds(this);
+            DisplayService.SaveDisplayPosition(_settings, _currentDisplayConfiguration, bounds.Left, bounds.Top);
+            SettingsService.Save(App.Settings);
         }
-
-        e.Handled = true;
-    }
-
-    private void Widget_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        // DragMove handles all the movement, we don't need to do anything here
-    }
-
-    private void Widget_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        // DragMove handles release, we just save position
-        LogEvent("MouseLeftButtonUp");
-        e.Handled = true;
     }
 
     private void SaveCurrentPosition()
     {
-        LogEvent($"Saving position - Config: {_currentDisplayConfiguration.ConfigurationHash}, X: {(int)Left}, Y: {(int)Top}");
-
-        // Save the current position for the current display configuration
         DisplayService.SaveDisplayPosition(_settings, _currentDisplayConfiguration, (int)Left, (int)Top);
         SettingsService.Save(App.Settings);
     }
 
-    /// <summary>
-    /// Checks if the click source is an interactive element (button, etc)
-    /// </summary>
     private bool IsClickOnInteractiveElement(object? source)
     {
-        // Check if click is on a button or other interactive control
         if (source is System.Windows.Controls.Button)
-        {
-            LogEvent("IsClickOnInteractiveElement: Button detected");
             return true;
-        }
-
-        // Check if the source element is inside the IconPanel (buttons area)
         if (source is System.Windows.FrameworkElement fe)
         {
             var parent = System.Windows.Media.VisualTreeHelper.GetParent(fe);
             while (parent != null)
             {
-                if (parent == IconPanel)
-                {
-                    LogEvent("IsClickOnInteractiveElement: Inside IconPanel");
-                    return true;
-                }
+                if (parent == IconPanel) return true;
                 parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
             }
         }
-
         return false;
     }
 
-    /// <summary>
-    /// Logs drag-related events for debugging
-    /// </summary>
-    private void LogEvent(string message)
-    {
-        var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
-        System.Diagnostics.Debug.WriteLine($"[{timestamp}] [DragWidget] {message}");
-    }
+    // ── Settings / About ─────────────────────────────────────────────────────
 
     public void OpenSettings()
     {
         var dlg = new SettingsWindow(_settings, livePreviewTarget: this);
         if (dlg.ShowDialog() == true)
         {
-            // Settings were saved, refresh display if needed
+            _bgColorHex = _settings.BackgroundColor;
+            _bgOpacity = _settings.BackgroundOpacity;
+            ApplyBackgroundInternal(_bgOpacity);
+            ApplyFontScale(_settings.FontScalePercent);
             UpdateBatteryDisplay();
+        }
+        else
+        {
+            ApplyBackground(_bgColorHex, _bgOpacity);
+            ApplyFontScale(_settings.FontScalePercent);
         }
     }
 
@@ -239,15 +261,10 @@ public partial class WidgetWindow : Window
         catch { }
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e)
-    {
-        OpenSettings();
-    }
+    private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
 
     private void About_Click(object sender, RoutedEventArgs e)
-    {
-        new AboutWindow() { Owner = this }.ShowDialog();
-    }
+        => new AboutWindow() { Owner = this }.ShowDialog();
 
     private void Remove_Click(object sender, RoutedEventArgs e)
     {
@@ -258,15 +275,11 @@ public partial class WidgetWindow : Window
             MessageBoxImage.Question);
 
         if (result == MessageBoxResult.Yes)
-        {
             ((App)System.Windows.Application.Current).RemoveWidget(_settings.Id);
-        }
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)
-    {
-        System.Windows.Application.Current.Shutdown();
-    }
+        => System.Windows.Application.Current.Shutdown();
 
     protected override void OnClosed(EventArgs e)
     {

@@ -32,11 +32,18 @@ public class TrayIconService : IDisposable
         InitializeTrayIcon();
     }
 
+    private static Icon LoadTrayIcon()
+    {
+        var asm = System.Reflection.Assembly.GetExecutingAssembly();
+        using var stream = asm.GetManifestResourceStream("WinWidgetBattery.battery.ico");
+        return stream != null ? new Icon(stream, 16, 16) : SystemIcons.Application;
+    }
+
     private void InitializeTrayIcon()
     {
         _notifyIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = LoadTrayIcon(),
             Visible = true,
             Text = "Battery Widget"
         };

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"c:\\\\opt\\\\projects\\\\projects-c#\\\\win-widget-battery\\\\Assets\")",
+      "Bash(cp \"c:\\\\opt\\\\projects\\\\projects-c#\\\\win-widget-time\\\\Assets\\\\landen_labs.mp4\" \"c:\\\\opt\\\\projects\\\\projects-c#\\\\win-widget-battery\\\\Assets\\\\landenlabs.mp4\")",
+      "Bash(cp \"c:\\\\opt\\\\projects\\\\projects-c#\\\\win-widget-time\\\\Assets\\\\landenlabs.png\" \"c:\\\\opt\\\\projects\\\\projects-c#\\\\win-widget-battery\\\\Assets\\\\landenlabs.png\")",
+      "Bash(dotnet build *)",
+      "Bash(magick identify *)",
+      "Bash(python3 -c \"from PIL import Image; img=Image.open\\(r'c:\\\\opt\\\\projects\\\\projects-c#\\\\win-widget-battery\\\\battery.png'\\); print\\(img.size, img.mode\\)\")",
+      "Bash(python3 *)"
+    ]
+  }
+}

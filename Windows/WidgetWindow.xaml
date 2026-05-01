@@ -9,8 +9,7 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         SizeToContent="WidthAndHeight"
-        Title="Battery Widget"
-        Topmost="True">
+        Title="Battery Widget">
 
     <Window.Resources>
         <Style x:Key="IconButtonStyle" TargetType="Button">
@@ -68,9 +67,9 @@
             CornerRadius="10"
             Padding="20,14,20,14"
             Cursor="Hand"
-            MouseLeftButtonDown="Widget_PreviewMouseLeftButtonDown"
-            MouseMove="Widget_PreviewMouseMove"
-            MouseLeftButtonUp="Widget_PreviewMouseLeftButtonUp"
+            MouseLeftButtonDown="Widget_MouseLeftButtonDown"
+            MouseMove="Widget_MouseMove"
+            MouseLeftButtonUp="Widget_MouseLeftButtonUp"
             MouseEnter="Widget_MouseEnter"
             MouseLeave="Widget_MouseLeave">
 

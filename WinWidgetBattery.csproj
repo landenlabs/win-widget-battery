@@ -9,6 +9,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>WinWidgetBattery</AssemblyName>
     <RootNamespace>WinWidgetBattery</RootNamespace>
+    <ApplicationIcon>battery.ico</ApplicationIcon>
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <FileVersion>1.0.0</FileVersion>
@@ -16,5 +17,18 @@
     <Product>WinWidgetBattery</Product>
     <Description>Battery status desktop widget</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="battery.ico"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\landenlabs.mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\landenlabs.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
 </Project>
