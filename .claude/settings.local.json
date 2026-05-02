@@ -9,7 +9,10 @@
       "Bash(python3 -c \"from PIL import Image; img=Image.open\\(r'c:\\\\opt\\\\projects\\\\projects-c#\\\\win-widget-battery\\\\battery.png'\\); print\\(img.size, img.mode\\)\")",
       "Bash(python3 *)",
       "Bash(Get-ChildItem -Path \"c:\\\\opt\\\\projects\\\\projects-c#\\\\win-widget-battery\" -Recurse -Force)",
-      "Bash(Select-Object FullName, PSIsContainer)"
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Get-ChildItem -Path \"c:\\\\opt\\\\projects\\\\projects-c#\\\\win-widget-battery\" -Recurse -File)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Format-Table FullName)"
     ]
   }
 }

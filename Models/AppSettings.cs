@@ -26,7 +26,7 @@ public class BatteryInfo
     public string GetStatusEmoji()
     {
         if (IsCharging)
-            return "🔌";
+            return "⚡";
 
         return BatteryPercentage switch
         {
@@ -60,6 +60,7 @@ public class WidgetSettings
     public string BackgroundColor { get; set; } = "#1E1E2E";
     public double BackgroundOpacity { get; set; } = 0.80;
     public int FontScalePercent { get; set; } = 100;
+    public string BarBackgroundColor { get; set; } = "#454570";
 
     /// <summary>
     /// Stores positions for different display configurations

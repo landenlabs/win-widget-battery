@@ -53,6 +53,30 @@
                                FontFamily="Consolas, Courier New"/>
                 </StackPanel>
 
+                <!-- Bar background color row -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,16">
+                    <TextBlock Text="Bar Background:" Foreground="#FFA6ADC8" VerticalAlignment="Center" Margin="0,0,12,0" Width="120"/>
+                    <Border x:Name="BarBgColorSwatch"
+                            Width="42" Height="28"
+                            CornerRadius="4"
+                            Background="{Binding BarBgColorBrush}"
+                            BorderBrush="#FF454570" BorderThickness="1"
+                            Cursor="Hand"
+                            Margin="0,0,12,0"
+                            MouseLeftButtonDown="BarBgColorSwatch_Click"
+                            ToolTip="Click to change battery bar background color"/>
+                    <Button Content="Change…"
+                            Style="{StaticResource SubtleButton}"
+                            Padding="10,5"
+                            Click="BarBgColorSwatch_Click"/>
+                    <TextBlock x:Name="BarBgColorHexLabel"
+                               Margin="12,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="#FF6C7086"
+                               FontSize="11"
+                               FontFamily="Consolas, Courier New"/>
+                </StackPanel>
+
                 <!-- Opacity row -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,16">
                     <TextBlock Text="Opacity:" Foreground="#FFA6ADC8" VerticalAlignment="Center" Margin="0,0,12,0" Width="120"/>

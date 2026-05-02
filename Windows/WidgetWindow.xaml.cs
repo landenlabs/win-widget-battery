@@ -17,6 +17,7 @@ public partial class WidgetWindow : Window
     private DisplayConfiguration _currentDisplayConfiguration;
     private string _bgColorHex = "#1E1E2E";
     private double _bgOpacity = 0.80;
+    private string _barBgColorHex = "#454570";
 
     private bool _isEmbedded;
     private bool _isDragging;
@@ -33,6 +34,7 @@ public partial class WidgetWindow : Window
 
         _bgColorHex = string.IsNullOrEmpty(settings.BackgroundColor) ? "#1E1E2E" : settings.BackgroundColor;
         _bgOpacity = settings.BackgroundOpacity > 0 ? settings.BackgroundOpacity : 0.80;
+        _barBgColorHex = string.IsNullOrEmpty(settings.BarBackgroundColor) ? "#454570" : settings.BarBackgroundColor;
 
         _currentDisplayConfiguration = DisplayService.GetCurrentDisplayConfiguration();
         var (x, y) = DisplayService.GetDisplayPosition(settings, _currentDisplayConfiguration);
@@ -49,6 +51,7 @@ public partial class WidgetWindow : Window
         base.OnSourceInitialized(e);
 
         ApplyBackgroundInternal(_bgOpacity);
+        ApplyBarBackgroundInternal();
         ApplyFontScale(_settings.FontScalePercent > 0 ? _settings.FontScalePercent : 100);
         ApplyVisibilitySettings();
 
@@ -262,7 +265,9 @@ public partial class WidgetWindow : Window
         {
             _bgColorHex = _settings.BackgroundColor;
             _bgOpacity = _settings.BackgroundOpacity;
+            _barBgColorHex = _settings.BarBackgroundColor;
             ApplyBackgroundInternal(_bgOpacity);
+            ApplyBarBackgroundInternal();
             ApplyFontScale(_settings.FontScalePercent);
             ApplyVisibilitySettings();
             UpdateBatteryDisplay();
@@ -270,6 +275,7 @@ public partial class WidgetWindow : Window
         else
         {
             ApplyBackground(_bgColorHex, _bgOpacity);
+            ApplyBarBackground(_barBgColorHex);
             ApplyFontScale(_settings.FontScalePercent);
         }
     }
@@ -283,6 +289,22 @@ public partial class WidgetWindow : Window
             ApplyBackgroundInternal(opacity);
         }
         catch { }
+    }
+
+    private void ApplyBarBackgroundInternal()
+    {
+        try
+        {
+            var color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(_barBgColorHex);
+            BatteryBarTrack.Background = new SolidColorBrush(color);
+        }
+        catch { }
+    }
+
+    public void ApplyBarBackground(string hexColor)
+    {
+        _barBgColorHex = hexColor;
+        ApplyBarBackgroundInternal();
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();

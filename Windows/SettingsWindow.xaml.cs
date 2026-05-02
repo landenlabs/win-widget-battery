@@ -39,6 +39,29 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         catch { return System.Windows.Media.Brushes.Black; }
     }
 
+    private string _barBgColorHex = "#454570";
+    public string BarBgColorHex
+    {
+        get => _barBgColorHex;
+        set
+        {
+            _barBgColorHex = value;
+            _barBgColorBrush = null;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(BarBgColorBrush));
+            LivePreviewBarBackground();
+        }
+    }
+
+    private SolidColorBrush? _barBgColorBrush;
+    public SolidColorBrush BarBgColorBrush => _barBgColorBrush ??= ParseBarBgBrush();
+
+    private SolidColorBrush ParseBarBgBrush()
+    {
+        try { return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_barBgColorHex)); }
+        catch { return System.Windows.Media.Brushes.Black; }
+    }
+
     private int _bgOpacityPercent;
     public int BgOpacityPercent
     {
@@ -114,6 +137,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     // ── Originals for Cancel restore ────────────────────────────────────────
 
     private readonly string _origBgColor;
+    private readonly string _origBarBgColor;
     private readonly int _origBgOpacityPercent;
     private readonly int _origUpdateInterval;
     private readonly int _origFontScalePercent;
@@ -136,6 +160,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
         // Snapshot originals so Cancel can restore the live preview
         _origBgColor          = string.IsNullOrEmpty(widget.BackgroundColor) ? "#1E1E2E" : widget.BackgroundColor;
+        _origBarBgColor       = string.IsNullOrEmpty(widget.BarBackgroundColor) ? "#454570" : widget.BarBackgroundColor;
         _origBgOpacityPercent = (int)Math.Round(widget.BackgroundOpacity * 100);
         if (_origBgOpacityPercent == 0) _origBgOpacityPercent = 80;
         _origUpdateInterval   = widget.UpdateInterval;
@@ -149,6 +174,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
         // Load working copies
         _bgColorHex        = _origBgColor;
+        _barBgColorHex     = _origBarBgColor;
         _bgOpacityPercent  = _origBgOpacityPercent;
         _updateInterval    = widget.UpdateInterval;
         _fontScalePercent  = _origFontScalePercent;
@@ -162,6 +188,8 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
         OnPropertyChanged(nameof(BgColorHex));
         OnPropertyChanged(nameof(BgColorBrush));
+        OnPropertyChanged(nameof(BarBgColorHex));
+        OnPropertyChanged(nameof(BarBgColorBrush));
         OnPropertyChanged(nameof(BgOpacityPercent));
         OnPropertyChanged(nameof(UpdateInterval));
         OnPropertyChanged(nameof(FontScalePercent));
@@ -174,6 +202,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         OnPropertyChanged(nameof(ShowTimeRemaining));
 
         UpdateColorHexLabel();
+        UpdateBarBgColorHexLabel();
     }
 
     // ── Background color picker ──────────────────────────────────────────────
@@ -198,6 +227,39 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         }
     }
 
+    // ── Bar background color picker ──────────────────────────────────────────
+
+    private void BarBgColorSwatch_Click(object sender, MouseButtonEventArgs e)
+    {
+        var picker = new ColorPickerWindow(_barBgColorHex) { Owner = this };
+        if (picker.ShowDialog() == true)
+        {
+            var c = picker.SelectedColor;
+            BarBgColorHex = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+        }
+    }
+
+    private void BarBgColorSwatch_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new ColorPickerWindow(_barBgColorHex) { Owner = this };
+        if (picker.ShowDialog() == true)
+        {
+            var c = picker.SelectedColor;
+            BarBgColorHex = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+        }
+    }
+
+    private void LivePreviewBarBackground()
+    {
+        _livePreviewTarget?.ApplyBarBackground(_barBgColorHex);
+        UpdateBarBgColorHexLabel();
+    }
+
+    private void UpdateBarBgColorHexLabel()
+    {
+        BarBgColorHexLabel.Text = _barBgColorHex.ToUpperInvariant();
+    }
+
     private void LivePreviewBackground()
     {
         _livePreviewTarget?.ApplyBackground(_bgColorHex, _bgOpacityPercent / 100.0);
@@ -220,9 +282,10 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
     private void OK_Click(object sender, RoutedEventArgs e)
     {
-        _widget.UpdateInterval    = _updateInterval;
-        _widget.BackgroundColor   = _bgColorHex;
-        _widget.BackgroundOpacity = _bgOpacityPercent / 100.0;
+        _widget.UpdateInterval      = _updateInterval;
+        _widget.BackgroundColor     = _bgColorHex;
+        _widget.BarBackgroundColor  = _barBgColorHex;
+        _widget.BackgroundOpacity   = _bgOpacityPercent / 100.0;
         _widget.FontScalePercent  = _fontScalePercent;
         _widget.EmbedInWallpaper  = _embedInWallpaper;
         _widget.ShowTitle         = _showTitle;
@@ -240,6 +303,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         _livePreviewTarget?.ApplyBackground(_origBgColor, _origBgOpacityPercent / 100.0);
+        _livePreviewTarget?.ApplyBarBackground(_origBarBgColor);
         _livePreviewTarget?.ApplyFontScale(_origFontScalePercent);
         _livePreviewTarget?.ApplyVisibilitySettings(
             _origShowTitle, _origShowBatteryIcon, _origShowPercentage,

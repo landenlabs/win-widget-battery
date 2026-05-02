@@ -145,7 +145,7 @@
 
                 <!-- Battery bar (collapses when hidden, reclaims horizontal space) -->
                 <StackPanel x:Name="BatteryBarContainer" Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0" IsHitTestVisible="False">
-                    <Border Background="#33454570" CornerRadius="4" Height="20" Width="80" IsHitTestVisible="False">
+                    <Border x:Name="BatteryBarTrack" Background="#FF454570" CornerRadius="4" Height="20" Width="80" IsHitTestVisible="False">
                         <Border x:Name="BatteryBar"
                                 Background="#FF00AA00"
                                 CornerRadius="2"
