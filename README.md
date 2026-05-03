@@ -1,155 +1,120 @@
-# Battery Widget - WinWidgetBattery
+# WinWidgetBattery
 
-A modern desktop widget application for Windows that displays real-time battery status and charge level. Built with WPF and .NET 10.
+A lightweight Windows desktop widget that displays real-time battery status as a transparent overlay directly on your desktop. Built with WPF and .NET 10.
+
+![Widget compact view](screens/batttery1.png)
+![Widget full view](screens/battery2.png)
 
 ## Features
 
-- **Real-time Battery Monitoring**: Displays current battery percentage with live updates
-- **Status Indicators**: Shows charging status, low battery warnings, and critical battery alerts
-- **Color-Coded Display**: 
-  - 🔌 Green when charging
-  - 🟢 Green for 50-100% charge
-  - 🟡 Yellow for 20-50% charge  
-  - 🔴 Red for critical battery (<20%)
-- **Time Remaining**: Shows estimated battery runtime (when available)
-- **Visual Battery Bar**: Graphical representation of current charge level
-- **Draggable Widget**: Move the widget anywhere on your screen by dragging
-- **System Tray Integration**: Quick access menu in the system tray
-- **Multiple Widgets**: Support for multiple battery widgets on screen
-- **Persistent Settings**: Widget positions and preferences are saved automatically
+- **Real-time battery monitoring** — percentage, charging state, and estimated time remaining
+- **Color-coded status bar** — green (charging or ≥50%), yellow (20–49%), red (<20%)
+- **Transparent overlay** — floats on the desktop or embeds in the wallpaper layer (behind all windows)
+- **Draggable** — click and drag to reposition anywhere on screen
+- **Multi-monitor aware** — remembers widget position per display configuration
+- **Multiple widgets** — add or remove widgets from the system tray menu
+- **Fully customizable** — toggle individual display components, adjust colors, opacity, font scale, and update interval
+- **Single instance** — prevents duplicate instances from running
 
-## UI Components
+## Screenshots
 
-### Main Widget Display
-- **Battery Icon & Percentage**: Large, easy-to-read display of current charge level
-- **Status Text**: Shows "Charging", "Discharging", "Low Battery", or "Critical Battery"
-- **Time Remaining**: Estimated hours/minutes remaining on current charge
-- **Visual Bar**: Horizontal bar showing battery level at a glance
+### Widget
 
-### Right-Click Context Menu
-- **Settings**: Configure widget options
-- **About**: View version information
-- **Remove Widget**: Delete this widget instance
-- **Exit**: Close the application
+| Compact | Full |
+|--------|------|
+| ![Compact widget](screens/batttery1.png) | ![Full widget](screens/battery2.png) |
 
-### System Tray
-- Double-click to add a new widget
-- Right-click for menu options
+### Settings
 
-## Architecture
+![Settings window](screens/battery-settings.png)
 
-### Project Structure
+### About
 
-```
-WinWidgetBattery/
-├── Models/
-│   └── AppSettings.cs         # Data models for battery info and settings
-├── Services/
-│   ├── BatteryService.cs      # Battery status monitoring using WinAPI
-│   ├── SettingsService.cs     # Persistence layer for widget settings
-│   └── TrayIconService.cs     # System tray integration
-├── ViewModels/
-│   └── BatteryViewModel.cs    # MVVM view model for battery data
-├── Windows/
-│   └── WidgetWindow.xaml(.cs) # Main widget UI
-├── App.xaml(.cs)              # Application entry point
-└── MainWindow.xaml(.cs)       # Hidden main window
+![About dialog](screens/battery-about.png)
+
+## Requirements
+
+- Windows 10 or Windows 11
+- [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)
+
+## Build
+
+```bash
+dotnet build WinWidgetBattery.slnx -c Release
 ```
 
-### Key Components
+Or open `WinWidgetBattery.slnx` in Visual Studio 2022+.
 
-#### BatteryService
-- Uses Windows API (`GetSystemPowerStatus`) to retrieve battery information
-- Returns battery percentage, charging status, and estimated time remaining
-- Updates are triggered by a `DispatcherTimer` (default: 1 second interval)
+## Usage
 
-#### SettingsService
-- Persists widget configuration to JSON in AppData
-- Stores widget positions, update intervals, and visibility settings
-- Supports single-instance detection via Mutex
+1. Run `WinWidgetBattery.exe` — the widget appears on screen and a tray icon appears in the system tray.
+2. **Drag** the widget to your preferred position.
+3. **Right-click** the widget or tray icon to access the context menu:
+   - **Settings** — customize appearance and display components
+   - **About** — version and app info
+   - **Add Widget** — create an additional widget instance
+   - **Remove Widget** — remove the current widget
+   - **Exit** — close the application
 
-#### TrayIconService
-- Manages system tray icon and context menu
-- Handles widget creation/deletion from tray menu
+## Settings
 
-#### WidgetWindow
-- Custom WPF window with:
-  - No window chrome (transparent, frameless)
-  - Always-on-top behavior
-  - Draggable interface
-  - Smooth animations and hover effects
+Access via right-click → **Settings** or the tray icon menu.
 
-## Technical Details
+### Widget Appearance
 
-### Technology Stack
-- **Framework**: .NET 10 (net10.0-windows)
-- **UI Framework**: WPF (Windows Presentation Foundation)
-- **Platform**: Windows Forms integration for system tray
-- **Language**: C# 12 with nullable reference types enabled
+| Setting | Description |
+|---------|-------------|
+| Background Color | Widget background color (hex color picker) |
+| Bar Background | Color of the battery bar track |
+| Opacity | Background transparency (0–100%) |
+| Font Scale | Text size multiplier (50–200%) |
+| Update Interval | How often battery status is polled (milliseconds) |
+| Embed in wallpaper layer | Places widget behind all windows (requires restart) |
 
-### Single Instance Detection
-The application uses a named Mutex to prevent multiple instances from running simultaneously.
+### Display Components
 
-### Data Persistence
-Settings are stored in:
+Each component can be toggled on or off independently:
+
+| Component | Description |
+|-----------|-------------|
+| Title | "Battery" header label |
+| Battery Icon | Emoji battery icon |
+| Percentage | Numeric charge percentage |
+| Color Bar | Horizontal fill bar |
+| Status Text | Charging / Discharging / Low Battery / Critical Battery |
+| Time Remaining | Estimated time left on battery |
+
+## Configuration
+
+Settings are persisted automatically to:
+
 ```
 %APPDATA%\WinWidgetBattery\settings.json
 ```
 
-### Update Interval
-Default update interval: 1000ms (1 second)
-Configurable per widget in future versions
+Widget position is saved per display configuration so the widget returns to the correct position when monitors are added, removed, or rearranged.
 
-## Usage
+## Project Structure
 
-### Launch the Application
-Simply run `WinWidgetBattery.exe`
-
-### Add Widgets
-1. Click the system tray icon
-2. Select "Add Widget"
-3. A new battery widget will appear on your desktop
-
-### Move Widgets
-- Click and drag the widget border to reposition
-- Position is automatically saved
-
-### Configure
-- Right-click widget → "Settings" for configuration options
-- Settings are persisted between sessions
-
-### Remove Widgets
-- Right-click widget → "Remove Widget"
-- Confirm deletion
-
-## Requirements
-
-- Windows 10 or later
-- .NET 10 Runtime
-- Working battery (laptop or UPS)
-
-## Building
-
-```bash
-dotnet build
-dotnet run
 ```
-
-## Future Enhancements
-
-- [ ] Multiple language support
-- [ ] Customizable colors and themes
-- [ ] Adjustable update intervals
-- [ ] Sound notifications for low battery
-- [ ] Task scheduler integration for automatic startup
-- [ ] Battery health information
-- [ ] Power plan display
-- [ ] Temperature monitoring
+WinWidgetBattery/
+├── Models/
+│   ├── AppSettings.cs          # App and widget settings models
+│   └── DisplayConfiguration.cs # Multi-monitor position tracking
+├── Services/
+│   ├── BatteryService.cs       # Win32 GetSystemPowerStatus wrapper
+│   ├── SettingsService.cs      # JSON settings persistence
+│   └── TrayIconService.cs      # System tray icon and menu
+├── ViewModels/
+│   └── BatteryViewModel.cs     # MVVM view model for battery data
+├── Windows/
+│   ├── WidgetWindow.xaml       # Main floating widget UI
+│   ├── SettingsWindow.xaml     # Settings dialog
+│   ├── AboutWindow.xaml        # About dialog
+│   └── ColorPickerWindow.xaml  # Color picker dialog
+└── App.xaml.cs                 # App lifecycle, tray icon, widget management
+```
 
 ## License
 
-Copyright © 2026
-
-## Credits
-
-Based on the WinWidgetTime example project architecture, adapted for battery monitoring.
+Copyright © 2026 LanDen Labs
