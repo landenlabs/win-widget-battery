@@ -15,10 +15,16 @@
 </table>
 
 # WinWidgetBattery
+[![Build and Package](https://github.com/landenlabs/win-widget-time/actions/workflows/build.yml/badge.svg)](https://github.com/landenlabs/win-widget-time/actions/workflows/build.yml)
+![Platform](https://img.shields.io/badge/platform-Windows%2011-blue)
+![.NET](https://img.shields.io/badge/.NET-10.0-purple)
+![License](https://img.shields.io/badge/license-Apache-green)
 
 A lightweight Windows desktop widget that displays real-time battery status as a transparent overlay directly on your desktop. Built with WPF and .NET 10.
 
 ![Widget full view](screens/battery2.png)
+
+**By [LanDen Labs](https://github.com/landenlabs) (2026)**
 
 ## Features
 
@@ -33,11 +39,11 @@ A lightweight Windows desktop widget that displays real-time battery status as a
 
 ## Screenshots
 
-### Widget
+### Widget Examples
 
-| Compact | Full |
-|--------|------|
-| ![Compact widget](screens/batttery1.png) | ![Full widget](screens/battery2.png) |
+ ![full](screens/battery2.png) 
+ ![Compact 70%](screens/battery1.png) 
+ ![Compact 44%](screens/battery3.png) 
 
 ### Settings
 
