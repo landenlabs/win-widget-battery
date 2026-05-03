@@ -44,6 +44,8 @@ A lightweight Windows desktop widget that displays real-time battery status as a
  ![full](screens/battery2.png) 
  ![Compact 70%](screens/battery1.png) 
  ![Compact 44%](screens/battery3.png) 
+ ![Compact 44%](screens/battery4.png) 
+ ![Compact 44%](screens/battery5.png) 
 
 ### Settings
 
