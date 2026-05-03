@@ -1,8 +1,23 @@
+
+<table border="0">
+  <tr>
+    <td>
+      3-Apr-2026<br>
+      Windows<br>
+      <a href="https://landenlabs.com/android/index.html">Home</a>
+    </td>
+    <td>
+      <a href="https://landenlabs.com/android/index.html">
+        <img src="screens/landenlabs.webp" width="300" alt="Logo">
+      </a>
+    </td>
+  </tr>
+</table>
+
 # WinWidgetBattery
 
 A lightweight Windows desktop widget that displays real-time battery status as a transparent overlay directly on your desktop. Built with WPF and .NET 10.
 
-![Widget compact view](screens/batttery1.png)
 ![Widget full view](screens/battery2.png)
 
 ## Features
@@ -118,3 +133,5 @@ WinWidgetBattery/
 ## License
 
 Copyright © 2026 LanDen Labs
+
+Licensed under the [Apache License 2.0](LICENSE.txt).

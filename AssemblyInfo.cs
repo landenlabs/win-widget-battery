@@ -1,3 +1,4 @@
+// Copyright (c) 2026
 using System.Windows;
 
 [assembly: ThemeInfo(
