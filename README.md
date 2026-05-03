@@ -4,7 +4,7 @@
     <td>
       3-Apr-2026<br>
       Windows<br>
-      <a href="https://landenlabs.com/android/index.html">Home</a>
+      <a href="https://landenlabs.com/android/index.html">WebSite</a>
     </td>
     <td>
       <a href="https://landenlabs.com/android/index.html">
@@ -24,7 +24,7 @@ A lightweight Windows desktop widget that displays real-time battery status as a
 
 ![Widget full view](screens/battery2.png)
 
-**By [LanDen Labs](https://github.com/landenlabs) (2026)**
+**By [LanDen Labs](https://github.com/landenlabs)**
 
 ## Features
 
