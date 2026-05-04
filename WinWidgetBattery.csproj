@@ -10,7 +10,7 @@
     <AssemblyName>WinWidgetBattery</AssemblyName>
     <RootNamespace>WinWidgetBattery</RootNamespace>
     <ApplicationIcon>battery.ico</ApplicationIcon>
-    <Version>6.05.01</Version>
+    <Version>6.05.02</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
     <Copyright>Copyright © 2026</Copyright>
