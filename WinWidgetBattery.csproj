@@ -10,9 +10,9 @@
     <AssemblyName>WinWidgetBattery</AssemblyName>
     <RootNamespace>WinWidgetBattery</RootNamespace>
     <ApplicationIcon>battery.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0</AssemblyVersion>
-    <FileVersion>1.0.0</FileVersion>
+    <Version>6.05.01</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
     <Copyright>Copyright © 2026</Copyright>
     <Product>WinWidgetBattery</Product>
     <Description>Battery status desktop widget</Description>
