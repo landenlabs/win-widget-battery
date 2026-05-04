@@ -1,4 +1,5 @@
 // Copyright (c) 2026
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -306,6 +307,9 @@ public partial class WidgetWindow : Window
         _barBgColorHex = hexColor;
         ApplyBarBackgroundInternal();
     }
+
+    private void BatteryUsage_Click(object sender, RoutedEventArgs e)
+        => Process.Start(new ProcessStartInfo("ms-settings:batterysaver") { UseShellExecute = true });
 
     private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
 

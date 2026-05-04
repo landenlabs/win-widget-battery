@@ -3,8 +3,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="About WinWidgetBattery"
-        Width="380" Height="480"
-        ResizeMode="NoResize"
+        Width="380" Height="600"
+        MinWidth="380" MinHeight="500"
+        ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterScreen"
         Background="#FF1E1E2E"
         Foreground="#FFCDD6F4"
@@ -14,10 +15,8 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="182"/>
             <RowDefinition Height="16"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="12"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="16"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -32,52 +31,120 @@
                       Stretch="Uniform"
                       Visibility="Collapsed"/>
 
-        <!-- App name + version -->
-        <StackPanel Grid.Row="2">
-            <TextBlock Text="🔋  WinWidgetBattery" FontSize="22" FontWeight="Bold"
-                       Foreground="#FF7AA2F7"/>
-            <TextBlock x:Name="VersionText"
-                       Foreground="#FF6C7086" FontSize="12" Margin="0,4,0,0"/>
-        </StackPanel>
+        <!-- Scrollable content -->
+        <ScrollViewer Grid.Row="2"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="0,0,18,0">
 
-        <Rectangle Grid.Row="3" Height="1" Fill="#FF313244" VerticalAlignment="Bottom"/>
+                <!-- App name + version -->
+                <TextBlock Text="🔋  WinWidgetBattery" FontSize="22" FontWeight="Bold"
+                           Foreground="#FF7AA2F7"/>
+                <TextBlock x:Name="VersionText"
+                           Foreground="#FF6C7086" FontSize="12" Margin="0,4,0,0"/>
 
-        <!-- Info -->
-        <StackPanel Grid.Row="4" Margin="0,14,0,0">
-            <TextBlock TextWrapping="Wrap" Foreground="#FFBAC2DE" LineHeight="22">
-                Displays real-time battery status and health information as a transparent 
-                overlay on your Windows desktop.
-            </TextBlock>
-            <TextBlock Margin="0,12,0,0" Foreground="#FFBAC2DE" FontSize="11">
-                <Run>Created by: LanDen Labs (2026)</Run>
-            </TextBlock>
-            <TextBlock Foreground="#FFBAC2DE" FontSize="11" Margin="0,3,0,0">
-                <Run>GitHub:&#x2003;&#x2003;&#x2003;</Run><Hyperlink NavigateUri="https://github.com/landenlabs/win-widget-battery.git"
-                             RequestNavigate="Hyperlink_RequestNavigate"
-                             Foreground="#FF89B4FA">https://github.com/landenlabs/win-widget-battery.git</Hyperlink>
-            </TextBlock>
-            <TextBlock Margin="0,12,0,0" Foreground="#FF6C7086" FontSize="11">
-                Battery status powered by Windows API (GetSystemPowerStatus).
-            </TextBlock>
-        </StackPanel>
+                <Rectangle Height="1" Fill="#FF313244" Margin="0,12,0,0"/>
 
-        <!-- Usage hints -->
-        <StackPanel Grid.Row="5" Margin="0,16,0,0" VerticalAlignment="Top">
-            <TextBlock Foreground="#FFA6ADC8" FontSize="11">
-                <Run FontWeight="SemiBold" Foreground="#FF89B4FA">Hover</Run>
-                <Run> the widget to reveal ⚙ and ? buttons.</Run>
-            </TextBlock>
-            <TextBlock Foreground="#FFA6ADC8" FontSize="11" Margin="0,3,0,0">
-                <Run FontWeight="SemiBold" Foreground="#FF89B4FA">Drag</Run>
-                <Run> the widget to reposition it on the desktop.</Run>
-            </TextBlock>
-            <TextBlock Foreground="#FFA6ADC8" FontSize="11" Margin="0,3,0,0">
-                <Run FontWeight="SemiBold" Foreground="#FF89B4FA">Right-click</Run>
-                <Run> for Settings, About, and Exit.</Run>
-            </TextBlock>
-        </StackPanel>
+                <!-- Info -->
+                <StackPanel Margin="0,14,0,0">
+                    <TextBlock TextWrapping="Wrap" Foreground="#FFBAC2DE" LineHeight="22">
+                        Displays real-time battery status and health information as a transparent
+                        overlay on your Windows desktop.
+                    </TextBlock>
+                    <TextBlock Margin="0,12,0,0" Foreground="#FFBAC2DE" FontSize="11">
+                        <Run>Created by: LanDen Labs (2026)</Run>
+                    </TextBlock>
+                    <TextBlock Foreground="#FFBAC2DE" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap">
+                        <Run>GitHub:&#x2003;&#x2003;&#x2003;</Run><Hyperlink NavigateUri="https://github.com/landenlabs/win-widget-battery.git"
+                                     RequestNavigate="Hyperlink_RequestNavigate"
+                                     Foreground="#FF89B4FA">https://github.com/landenlabs/win-widget-battery.git</Hyperlink>
+                    </TextBlock>
+                    <TextBlock Margin="0,12,0,0" Foreground="#FF6C7086" FontSize="11">
+                        Battery status powered by Windows API (GetSystemPowerStatus).
+                    </TextBlock>
+                </StackPanel>
 
-        <Button Grid.Row="6" Content="Close" Style="{StaticResource AccentButton}"
+                <Rectangle Height="1" Fill="#FF313244" Margin="0,12,0,0"/>
+
+                <!-- Usage hints -->
+                <StackPanel Margin="0,12,0,0">
+                    <TextBlock Foreground="#FFA6ADC8" FontSize="11">
+                        <Run FontWeight="SemiBold" Foreground="#FF89B4FA">Hover</Run>
+                        <Run> the widget to reveal ⚙ and ? buttons.</Run>
+                    </TextBlock>
+                    <TextBlock Foreground="#FFA6ADC8" FontSize="11" Margin="0,3,0,0">
+                        <Run FontWeight="SemiBold" Foreground="#FF89B4FA">Drag</Run>
+                        <Run> the widget to reposition it on the desktop.</Run>
+                    </TextBlock>
+                    <TextBlock Foreground="#FFA6ADC8" FontSize="11" Margin="0,3,0,0">
+                        <Run FontWeight="SemiBold" Foreground="#FF89B4FA">Right-click</Run>
+                        <Run> for Settings, About, and Exit.</Run>
+                    </TextBlock>
+                </StackPanel>
+
+                <Rectangle Height="1" Fill="#FF313244" Margin="0,12,0,0"/>
+
+                <!-- Help: Find Power Usage -->
+                <StackPanel Margin="0,12,0,8">
+                    <TextBlock Text="Find Power Usage" FontSize="13" FontWeight="SemiBold"
+                               Foreground="#FF7AA2F7"/>
+
+                    <!-- GUI tools -->
+                    <TextBlock Text="GUI" FontSize="11" FontWeight="SemiBold"
+                               Foreground="#FF89B4FA" Margin="0,10,0,2"/>
+
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <Run FontFamily="Consolas" Foreground="#FFCDD6F4">taskmgr</Run>
+                        <Run Foreground="#FF6C7086"> — </Run>
+                        <Run Foreground="#FFA6ADC8">Processes tab: CPU, Disk and Power usage column (Low / Medium / High / Very High)</Run>
+                    </TextBlock>
+
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <Run FontFamily="Consolas" Foreground="#FFCDD6F4">resmon</Run>
+                        <Run Foreground="#FF6C7086"> — </Run>
+                        <Run Foreground="#FFA6ADC8">Resource Monitor: detailed CPU, Disk, Network, Memory breakdown per process</Run>
+                    </TextBlock>
+
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <Run FontFamily="Consolas" Foreground="#FFCDD6F4">Settings → Power &amp; battery</Run>
+                        <Run Foreground="#FF6C7086"> — </Run>
+                        <Run Foreground="#FFA6ADC8">per-app usage over last 24 h or 7 days (aggregated, not live)</Run>
+                    </TextBlock>
+
+                    <!-- Command-line tools -->
+                    <TextBlock Text="Command line" FontSize="11" FontWeight="SemiBold"
+                               Foreground="#FF89B4FA" Margin="0,10,0,2"/>
+
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <Run FontFamily="Consolas" Foreground="#FFCDD6F4">powercfg /sleepstudy</Run>
+                        <Run Foreground="#FF6C7086"> — </Run>
+                        <Run Foreground="#FFA6ADC8">HTML report of power usage over time (great for background drain)</Run>
+                    </TextBlock>
+
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <Run FontFamily="Consolas" Foreground="#FFCDD6F4">powercfg /energy</Run>
+                        <Run Foreground="#FF6C7086"> — </Run>
+                        <Run Foreground="#FFA6ADC8">60-second trace; HTML report flagging processes and drivers with excessive use</Run>
+                    </TextBlock>
+
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <Run FontFamily="Consolas" Foreground="#FFCDD6F4">powercfg /batteryreport</Run>
+                        <Run Foreground="#FF6C7086"> — </Run>
+                        <Run Foreground="#FFA6ADC8">Battery health history; useful for capacity trends</Run>
+                    </TextBlock>
+
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <Run FontFamily="Consolas" Foreground="#FFCDD6F4">Get-Counter</Run>
+                        <Run Foreground="#FFA6ADC8"> (PowerShell)</Run>
+                        <Run Foreground="#FF6C7086"> — </Run>
+                        <Run Foreground="#FFA6ADC8">poll \Process(*)\% Processor Time and \PhysicalDisk(*)\Disk Bytes/sec live</Run>
+                    </TextBlock>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="4" Content="Close" Style="{StaticResource AccentButton}"
                 HorizontalAlignment="Right" Click="Close_Click"/>
     </Grid>
 </Window>

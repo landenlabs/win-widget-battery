@@ -50,6 +50,7 @@
                     <Setter Property="Background" Value="Transparent"/>
                 </Style>
             </ContextMenu.Resources>
+            <MenuItem Header="⚡  Usage"           Click="BatteryUsage_Click"/>
             <MenuItem Header="⚙  Settings"      Click="Settings_Click"/>
             <MenuItem Header="?  About"          Click="About_Click"/>
             <Separator Background="#FF454570"/>
@@ -89,6 +90,11 @@
                                 HorizontalAlignment="Right"
                                 Visibility="Collapsed"
                                 IsHitTestVisible="True">
+                        <Button Style="{StaticResource IconButtonStyle}"
+                                Content="⚡"
+                                ToolTip="Battery Usage"
+                                Click="BatteryUsage_Click"
+                                IsHitTestVisible="True"/>
                         <Button Style="{StaticResource IconButtonStyle}"
                                 Content="⚙"
                                 ToolTip="Settings"
