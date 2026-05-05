@@ -113,77 +113,72 @@
             </StackPanel>
 
             <!-- Battery Display -->
-            <Grid x:Name="BatteryContentGrid" Margin="0,6" IsHitTestVisible="False">
+            <Grid x:Name="BatteryContentGrid" Margin="0,6">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Battery info: icon, percentage, status, time -->
-                <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" IsHitTestVisible="False">
-                    <StackPanel Orientation="Horizontal" IsHitTestVisible="False">
+                <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
                         <TextBlock x:Name="BatteryIconText"
                                    Text="🔋"
                                    Foreground="#FFCDD6F4"
-                                   FontSize="24"
-                                   IsHitTestVisible="False"/>
+                                   FontSize="24"/>
                         <TextBlock x:Name="BatteryPercentText"
                                    Text=" ---%"
                                    Foreground="#FFCDD6F4"
                                    FontSize="24"
                                    FontWeight="Bold"
-                                   FontFamily="Consolas, Courier New"
-                                   IsHitTestVisible="False"/>
+                                   FontFamily="Consolas, Courier New"/>
                     </StackPanel>
                     <TextBlock x:Name="StatusText"
                                Text="Status: Unknown"
                                Foreground="#FF8787A1"
                                FontSize="10"
-                               Margin="0,4,0,0"
-                               IsHitTestVisible="False"/>
+                               Margin="0,4,0,0"/>
                     <TextBlock x:Name="TimeRemainingText"
                                Text=""
                                Foreground="#FF8787A1"
                                FontSize="9"
-                               Margin="0,2,0,0"
-                               IsHitTestVisible="False"/>
+                               Margin="0,2,0,0"/>
                 </StackPanel>
 
                 <!-- Battery bar (collapses when hidden, reclaims horizontal space) -->
-                <StackPanel x:Name="BatteryBarContainer" Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0" IsHitTestVisible="False">
-                    <Border x:Name="BatteryBarTrack" Background="#FF454570" CornerRadius="4" Height="20" Width="80" IsHitTestVisible="False">
+                <StackPanel x:Name="BatteryBarContainer" Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
+                    <Border x:Name="BatteryBarTrack" Background="#FF454570" CornerRadius="4" Height="20" Width="80">
                         <Border x:Name="BatteryBar"
                                 Background="#FF00AA00"
                                 CornerRadius="2"
                                 Height="18"
                                 Margin="1"
                                 HorizontalAlignment="Left"
-                                Width="78"
-                                IsHitTestVisible="False"/>
+                                Width="78"/>
                     </Border>
                 </StackPanel>
             </Grid>
 
             <!-- Device battery rows -->
-            <StackPanel x:Name="DeviceBatteriesSection" Visibility="Collapsed" IsHitTestVisible="False">
+            <StackPanel x:Name="DeviceBatteriesSection" Visibility="Collapsed">
                 <Rectangle Height="1" Fill="#33FFFFFF" Margin="0,6,0,4" IsHitTestVisible="False"/>
-                <ItemsControl x:Name="DeviceBatteriesList" IsHitTestVisible="False">
+                <ItemsControl x:Name="DeviceBatteriesList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="0,1" IsHitTestVisible="False">
+                            <Grid Margin="0,1">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding Icon}"
-                                           Foreground="#FFCDD6F4" Margin="0,0,6,0" IsHitTestVisible="False"/>
+                                           Foreground="#FFCDD6F4" Margin="0,0,6,0"/>
                                 <TextBlock Grid.Column="1" Text="{Binding Name}"
                                            Foreground="#FFCDD6F4" TextTrimming="CharacterEllipsis"
-                                           MaxWidth="120" IsHitTestVisible="False"/>
+                                           MaxWidth="120"/>
                                 <TextBlock Grid.Column="2" Text="{Binding Percent, StringFormat={}{0}%}"
                                            Foreground="#FF89B4FA" Margin="8,0,0,0"
-                                           FontFamily="Consolas, Courier New" IsHitTestVisible="False"/>
+                                           FontFamily="Consolas, Courier New"/>
                             </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

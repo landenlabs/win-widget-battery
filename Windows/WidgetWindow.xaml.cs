@@ -24,6 +24,9 @@ public partial class WidgetWindow : Window
     private bool _isEmbedded;
     private bool _isDragging;
     private System.Windows.Point _dragOffset;
+    private System.Windows.Point _mouseDownScreenPos;
+    private bool _mouseDownOnBatteryRow;
+    private DeviceBatteryInfo? _mouseDownOnDevice;
 
     public string WidgetId => _settings.Id;
 
@@ -212,9 +215,13 @@ public partial class WidgetWindow : Window
         if (IsClickOnInteractiveElement(e.OriginalSource))
             return;
 
+        _mouseDownOnBatteryRow = IsOnBatteryRow(e.OriginalSource);
+        _mouseDownOnDevice = GetDeviceFromElement(e.OriginalSource);
+
         if (_isEmbedded)
         {
             var cursor = DesktopService.GetCursorPosition();
+            _mouseDownScreenPos = new System.Windows.Point(cursor.X, cursor.Y);
             var bounds = DesktopService.GetWindowBounds(this);
             _dragOffset = new System.Windows.Point(cursor.X - bounds.Left, cursor.Y - bounds.Top);
             _isDragging = true;
@@ -222,7 +229,11 @@ public partial class WidgetWindow : Window
         }
         else
         {
+            var beforeLeft = Left;
+            var beforeTop = Top;
             try { DragMove(); } catch { }
+            if (Math.Abs(Left - beforeLeft) <= 5 && Math.Abs(Top - beforeTop) <= 5)
+                OpenPanelForClickedElement();
             SaveCurrentPosition();
         }
         e.Handled = true;
@@ -242,12 +253,20 @@ public partial class WidgetWindow : Window
         if (!_isDragging) return;
         _isDragging = false;
         WidgetBorder.ReleaseMouseCapture();
+
+        var cursor = DesktopService.GetCursorPosition();
+        bool wasClick = Math.Abs(cursor.X - _mouseDownScreenPos.X) <= 5 &&
+                        Math.Abs(cursor.Y - _mouseDownScreenPos.Y) <= 5;
+
         if (_isEmbedded)
         {
             var bounds = DesktopService.GetWindowBounds(this);
             DisplayService.SaveDisplayPosition(_settings, _currentDisplayConfiguration, bounds.Left, bounds.Top);
             SettingsService.Save(App.Settings);
         }
+
+        if (wasClick)
+            OpenPanelForClickedElement();
     }
 
     private void SaveCurrentPosition()
@@ -270,6 +289,42 @@ public partial class WidgetWindow : Window
             }
         }
         return false;
+    }
+
+    private bool IsOnBatteryRow(object? source)
+    {
+        if (source is not DependencyObject element) return false;
+        while (element != null)
+        {
+            if (element == BatteryContentGrid) return true;
+            element = VisualTreeHelper.GetParent(element);
+        }
+        return false;
+    }
+
+    private DeviceBatteryInfo? GetDeviceFromElement(object? source)
+    {
+        if (source is not DependencyObject element) return null;
+        while (element != null)
+        {
+            if (element is FrameworkElement { DataContext: DeviceBatteryInfo device })
+                return device;
+            element = VisualTreeHelper.GetParent(element);
+        }
+        return null;
+    }
+
+    private void OpenPanelForClickedElement()
+    {
+        if (_mouseDownOnBatteryRow)
+            Process.Start(new ProcessStartInfo("ms-settings:battery") { UseShellExecute = true });
+        else if (_mouseDownOnDevice is { } device)
+        {
+            var uri = device.ConnectionType is DeviceConnectionType.BluetoothLE or DeviceConnectionType.BluetoothHid
+                ? "ms-settings:bluetooth"
+                : "ms-settings:connecteddevices";
+            Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
+        }
     }
 
     // ── Settings / About ─────────────────────────────────────────────────────
