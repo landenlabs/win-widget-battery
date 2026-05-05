@@ -12,6 +12,7 @@ public partial class App : System.Windows.Application
     private TrayIconService? _trayIcon;
     private readonly List<WidgetWindow> _widgetWindows = [];
     private readonly BatteryService _batteryService = new();
+    private readonly DeviceBatteryService _deviceBatteryService = new();
 
     public static AppSettings Settings { get; private set; } = new();
 
@@ -39,6 +40,8 @@ public partial class App : System.Windows.Application
         foreach (var widget in Settings.Widgets)
             CreateAndShowWidget(widget);
 
+        _ = _deviceBatteryService.StartAsync();
+
         _trayIcon = new TrayIconService(
             onAddWidget:      AddWidget,
             getWidgets:       () => Settings.Widgets,
@@ -59,7 +62,7 @@ public partial class App : System.Windows.Application
 
     private void CreateAndShowWidget(WidgetSettings settings)
     {
-        var window = new WidgetWindow(settings, _batteryService);
+        var window = new WidgetWindow(settings, _batteryService, _deviceBatteryService);
         _widgetWindows.Add(window);
         window.Show();
     }
@@ -95,10 +98,6 @@ public partial class App : System.Windows.Application
 
     private void OpenAbout()
     {
-        System.Windows.MessageBox.Show(
-            "Battery Widget v1.0.0\n\nA desktop widget that displays current battery status and charge level.",
-            "About Battery Widget",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        Dispatcher.Invoke(() => new WinWidgetBattery.Windows.AboutWindow().ShowDialog());
     }
 }

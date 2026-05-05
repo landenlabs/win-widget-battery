@@ -134,6 +134,13 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         set { _showTimeRemaining = value; OnPropertyChanged(); LivePreviewVisibility(); }
     }
 
+    private bool _showDeviceBatteries;
+    public bool ShowDeviceBatteries
+    {
+        get => _showDeviceBatteries;
+        set { _showDeviceBatteries = value; OnPropertyChanged(); LivePreviewVisibility(); }
+    }
+
     // ── Originals for Cancel restore ────────────────────────────────────────
 
     private readonly string _origBgColor;
@@ -147,6 +154,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private readonly bool _origShowColorBar;
     private readonly bool _origShowStatusText;
     private readonly bool _origShowTimeRemaining;
+    private readonly bool _origShowDeviceBatteries;
 
     // ── Constructor ──────────────────────────────────────────────────────────
 
@@ -169,8 +177,9 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _origShowBatteryIcon  = widget.ShowBatteryIcon;
         _origShowPercentage   = widget.ShowPercentage;
         _origShowColorBar     = widget.ShowColorBar;
-        _origShowStatusText   = widget.ShowStatusText;
-        _origShowTimeRemaining = widget.ShowTimeRemaining;
+        _origShowStatusText       = widget.ShowStatusText;
+        _origShowTimeRemaining    = widget.ShowTimeRemaining;
+        _origShowDeviceBatteries  = widget.ShowDeviceBatteries;
 
         // Load working copies
         _bgColorHex        = _origBgColor;
@@ -183,8 +192,9 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _showBatteryIcon   = widget.ShowBatteryIcon;
         _showPercentage    = widget.ShowPercentage;
         _showColorBar      = widget.ShowColorBar;
-        _showStatusText    = widget.ShowStatusText;
-        _showTimeRemaining = widget.ShowTimeRemaining;
+        _showStatusText       = widget.ShowStatusText;
+        _showTimeRemaining    = widget.ShowTimeRemaining;
+        _showDeviceBatteries  = widget.ShowDeviceBatteries;
 
         OnPropertyChanged(nameof(BgColorHex));
         OnPropertyChanged(nameof(BgColorBrush));
@@ -200,6 +210,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         OnPropertyChanged(nameof(ShowColorBar));
         OnPropertyChanged(nameof(ShowStatusText));
         OnPropertyChanged(nameof(ShowTimeRemaining));
+        OnPropertyChanged(nameof(ShowDeviceBatteries));
 
         UpdateColorHexLabel();
         UpdateBarBgColorHexLabel();
@@ -270,7 +281,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     {
         _livePreviewTarget?.ApplyVisibilitySettings(
             _showTitle, _showBatteryIcon, _showPercentage,
-            _showColorBar, _showStatusText, _showTimeRemaining);
+            _showColorBar, _showStatusText, _showTimeRemaining, _showDeviceBatteries);
     }
 
     private void UpdateColorHexLabel()
@@ -292,8 +303,9 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _widget.ShowBatteryIcon   = _showBatteryIcon;
         _widget.ShowPercentage    = _showPercentage;
         _widget.ShowColorBar      = _showColorBar;
-        _widget.ShowStatusText    = _showStatusText;
-        _widget.ShowTimeRemaining = _showTimeRemaining;
+        _widget.ShowStatusText       = _showStatusText;
+        _widget.ShowTimeRemaining    = _showTimeRemaining;
+        _widget.ShowDeviceBatteries  = _showDeviceBatteries;
         SettingsService.Save(App.Settings);
 
         DialogResult = true;
@@ -307,7 +319,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _livePreviewTarget?.ApplyFontScale(_origFontScalePercent);
         _livePreviewTarget?.ApplyVisibilitySettings(
             _origShowTitle, _origShowBatteryIcon, _origShowPercentage,
-            _origShowColorBar, _origShowStatusText, _origShowTimeRemaining);
+            _origShowColorBar, _origShowStatusText, _origShowTimeRemaining, _origShowDeviceBatteries);
 
         DialogResult = false;
         Close();

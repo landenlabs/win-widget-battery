@@ -13,6 +13,7 @@ public partial class WidgetWindow : Window
 {
     private readonly WidgetSettings _settings;
     private readonly BatteryService _batteryService;
+    private readonly DeviceBatteryService _deviceBatteryService;
     private System.Windows.Threading.DispatcherTimer? _updateTimer;
     private System.Windows.Threading.DispatcherTimer? _displayCheckTimer;
     private DisplayConfiguration _currentDisplayConfiguration;
@@ -26,12 +27,13 @@ public partial class WidgetWindow : Window
 
     public string WidgetId => _settings.Id;
 
-    public WidgetWindow(WidgetSettings settings, BatteryService batteryService)
+    public WidgetWindow(WidgetSettings settings, BatteryService batteryService, DeviceBatteryService deviceBatteryService)
     {
         InitializeComponent();
 
         _settings = settings;
         _batteryService = batteryService;
+        _deviceBatteryService = deviceBatteryService;
 
         _bgColorHex = string.IsNullOrEmpty(settings.BackgroundColor) ? "#1E1E2E" : settings.BackgroundColor;
         _bgOpacity = settings.BackgroundOpacity > 0 ? settings.BackgroundOpacity : 0.80;
@@ -134,6 +136,12 @@ public partial class WidgetWindow : Window
             var percentage = batteryInfo.BatteryPercentage / 100.0;
             BatteryBar.Width = 78 * percentage;
             BatteryBar.Background = batteryInfo.GetStatusColor();
+
+            var devices = _deviceBatteryService.GetDeviceBatteries();
+            DeviceBatteriesList.ItemsSource = devices;
+            DeviceBatteriesSection.Visibility =
+                _settings.ShowDeviceBatteries && devices.Count > 0
+                    ? Visibility.Visible : Visibility.Collapsed;
         });
     }
 
@@ -147,24 +155,31 @@ public partial class WidgetWindow : Window
         StatusText.FontSize = Math.Max(6, 10 * factor);
         TimeRemainingText.FontSize = Math.Max(6, 9 * factor);
         TitleText.FontSize = Math.Max(6, 11 * factor);
+        DeviceBatteriesList.FontSize = Math.Max(8, 11 * factor);
     }
 
     public void ApplyVisibilitySettings(bool showTitle, bool showBatteryIcon, bool showPercentage,
-        bool showColorBar, bool showStatusText, bool showTimeRemaining)
+        bool showColorBar, bool showStatusText, bool showTimeRemaining, bool showDeviceBatteries)
     {
-        TitleSection.Visibility       = showTitle       ? Visibility.Visible : Visibility.Collapsed;
-        BatteryIconText.Visibility    = showBatteryIcon ? Visibility.Visible : Visibility.Collapsed;
-        BatteryPercentText.Visibility = showPercentage  ? Visibility.Visible : Visibility.Collapsed;
-        BatteryBarContainer.Visibility = showColorBar   ? Visibility.Visible : Visibility.Collapsed;
-        StatusText.Visibility         = showStatusText  ? Visibility.Visible : Visibility.Collapsed;
+        TitleSection.Visibility        = showTitle       ? Visibility.Visible : Visibility.Collapsed;
+        BatteryIconText.Visibility     = showBatteryIcon ? Visibility.Visible : Visibility.Collapsed;
+        BatteryPercentText.Visibility  = showPercentage  ? Visibility.Visible : Visibility.Collapsed;
+        BatteryBarContainer.Visibility = showColorBar    ? Visibility.Visible : Visibility.Collapsed;
+        StatusText.Visibility          = showStatusText  ? Visibility.Visible : Visibility.Collapsed;
         if (!showTimeRemaining)
             TimeRemainingText.Visibility = Visibility.Collapsed;
         // showTimeRemaining=true: UpdateBatteryDisplay manages visibility based on data availability
+
+        // Device batteries section: also gated on whether devices exist
+        if (!showDeviceBatteries)
+            DeviceBatteriesSection.Visibility = Visibility.Collapsed;
+        // showDeviceBatteries=true: UpdateBatteryDisplay manages based on device count
     }
 
     private void ApplyVisibilitySettings() =>
         ApplyVisibilitySettings(_settings.ShowTitle, _settings.ShowBatteryIcon, _settings.ShowPercentage,
-            _settings.ShowColorBar, _settings.ShowStatusText, _settings.ShowTimeRemaining);
+            _settings.ShowColorBar, _settings.ShowStatusText, _settings.ShowTimeRemaining,
+            _settings.ShowDeviceBatteries);
 
     // ── Hover ────────────────────────────────────────────────────────────────
 

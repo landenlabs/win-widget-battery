@@ -153,6 +153,7 @@
                         <RowDefinition Height="30"/>
                         <RowDefinition Height="30"/>
                         <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
                     </Grid.RowDefinitions>
 
                     <!-- Header -->
@@ -206,6 +207,13 @@
                                Text="Time Remaining" Foreground="#FFA6ADC8" VerticalAlignment="Center"/>
                     <CheckBox  Grid.Row="7" Grid.Column="1"
                                IsChecked="{Binding ShowTimeRemaining, Mode=TwoWay}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <!-- Device Batteries -->
+                    <TextBlock Grid.Row="8" Grid.Column="0"
+                               Text="Device Batteries" Foreground="#FFA6ADC8" VerticalAlignment="Center"/>
+                    <CheckBox  Grid.Row="8" Grid.Column="1"
+                               IsChecked="{Binding ShowDeviceBatteries, Mode=TwoWay}"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                 </Grid>

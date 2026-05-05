@@ -164,6 +164,32 @@
                 </StackPanel>
             </Grid>
 
+            <!-- Device battery rows -->
+            <StackPanel x:Name="DeviceBatteriesSection" Visibility="Collapsed" IsHitTestVisible="False">
+                <Rectangle Height="1" Fill="#33FFFFFF" Margin="0,6,0,4" IsHitTestVisible="False"/>
+                <ItemsControl x:Name="DeviceBatteriesList" IsHitTestVisible="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,1" IsHitTestVisible="False">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding Icon}"
+                                           Foreground="#FFCDD6F4" Margin="0,0,6,0" IsHitTestVisible="False"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                           Foreground="#FFCDD6F4" TextTrimming="CharacterEllipsis"
+                                           MaxWidth="120" IsHitTestVisible="False"/>
+                                <TextBlock Grid.Column="2" Text="{Binding Percent, StringFormat={}{0}%}"
+                                           Foreground="#FF89B4FA" Margin="8,0,0,0"
+                                           FontFamily="Consolas, Courier New" IsHitTestVisible="False"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
         </StackPanel>
     </Border>
 </Window>

@@ -56,6 +56,7 @@ public class WidgetSettings
     public bool ShowColorBar { get; set; } = true;
     public bool ShowStatusText { get; set; } = true;
     public bool ShowTimeRemaining { get; set; } = true;
+    public bool ShowDeviceBatteries { get; set; } = true;
     public bool EmbedInWallpaper { get; set; } = true;
     public string BackgroundColor { get; set; } = "#1E1E2E";
     public double BackgroundOpacity { get; set; } = 0.80;
