@@ -5,6 +5,7 @@ namespace WinWidgetBattery.Models;
 
 public class BatteryInfo
 {
+    public bool HasBattery { get; set; } = true;
     public int BatteryPercentage { get; set; }
     public bool IsCharging { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -12,6 +13,8 @@ public class BatteryInfo
 
     public SolidColorBrush GetStatusColor()
     {
+        if (!HasBattery)
+            return new SolidColorBrush(Colors.Gray);
         if (IsCharging)
             return new SolidColorBrush(Colors.LimeGreen);
 
@@ -25,6 +28,8 @@ public class BatteryInfo
 
     public string GetStatusEmoji()
     {
+        if (!HasBattery)
+            return "🔌";
         if (IsCharging)
             return "⚡";
 

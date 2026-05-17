@@ -115,7 +115,7 @@ public partial class WidgetWindow : Window
         Dispatcher.Invoke(() =>
         {
             BatteryIconText.Text = batteryInfo.GetStatusEmoji();
-            BatteryPercentText.Text = $" {batteryInfo.BatteryPercentage}%";
+            BatteryPercentText.Text = batteryInfo.HasBattery ? $" {batteryInfo.BatteryPercentage}%" : " --";
             StatusText.Text = $"Status: {batteryInfo.Status}";
 
             bool hasTime = batteryInfo.TimeRemaining.HasValue && batteryInfo.TimeRemaining.Value.TotalSeconds > 0;
@@ -136,7 +136,7 @@ public partial class WidgetWindow : Window
                 TimeRemainingText.Visibility = Visibility.Collapsed;
             }
 
-            var percentage = batteryInfo.BatteryPercentage / 100.0;
+            var percentage = batteryInfo.HasBattery ? batteryInfo.BatteryPercentage / 100.0 : 0.0;
             BatteryBar.Width = 78 * percentage;
             BatteryBar.Background = batteryInfo.GetStatusColor();
 

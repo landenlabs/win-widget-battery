@@ -28,15 +28,24 @@ public class BatteryService
         {
             if (GetSystemPowerStatus(out var status))
             {
-                info.BatteryPercentage = status.BatteryLifePercent;
-                info.IsCharging = status.ACLineStatus == 1;
+                // 0xFF (255) means no battery or unknown; flag bit 0x80 means no system battery
+                bool noBattery = status.BatteryLifePercent == 255 || (status.BatteryFlag & 0x80) != 0;
+                info.HasBattery  = !noBattery;
+                info.IsCharging  = status.ACLineStatus == 1;
 
-                if (status.BatteryLifeTime != uint.MaxValue && status.BatteryLifeTime > 0)
+                if (noBattery)
                 {
-                    info.TimeRemaining = TimeSpan.FromSeconds(status.BatteryLifeTime);
+                    info.Status = status.ACLineStatus == 1 ? "AC Power" : "No Battery";
                 }
+                else
+                {
+                    info.BatteryPercentage = status.BatteryLifePercent;
 
-                info.Status = GetStatusText(status);
+                    if (status.BatteryLifeTime != uint.MaxValue && status.BatteryLifeTime > 0)
+                        info.TimeRemaining = TimeSpan.FromSeconds(status.BatteryLifeTime);
+
+                    info.Status = GetStatusText(status);
+                }
             }
         }
         catch
