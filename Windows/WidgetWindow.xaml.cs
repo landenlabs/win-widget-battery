@@ -224,28 +224,39 @@ public partial class WidgetWindow : Window
             _mouseDownScreenPos = new System.Windows.Point(cursor.X, cursor.Y);
             var bounds = DesktopService.GetWindowBounds(this);
             _dragOffset = new System.Windows.Point(cursor.X - bounds.Left, cursor.Y - bounds.Top);
-            _isDragging = true;
-            WidgetBorder.CaptureMouse();
         }
         else
         {
-            var beforeLeft = Left;
-            var beforeTop = Top;
-            try { DragMove(); } catch { }
-            if (Math.Abs(Left - beforeLeft) <= 5 && Math.Abs(Top - beforeTop) <= 5)
-                OpenPanelForClickedElement();
-            SaveCurrentPosition();
+            var cursor = DesktopService.GetCursorPosition();
+            _mouseDownScreenPos = new System.Windows.Point(cursor.X, cursor.Y);
+            // DragMove() fails on Windows 10 with AllowsTransparency=True + WindowStyle=None
+            _dragOffset = e.GetPosition(this);
         }
+        _isDragging = true;
+        WidgetBorder.CaptureMouse();
         e.Handled = true;
     }
 
     private void Widget_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (!_isDragging || !_isEmbedded) return;
+        if (!_isDragging) return;
         var cursor = DesktopService.GetCursorPosition();
-        int newX = cursor.X - (int)_dragOffset.X;
-        int newY = cursor.Y - (int)_dragOffset.Y;
-        DesktopService.MoveEmbeddedWindow(this, newX, newY);
+        if (_isEmbedded)
+        {
+            int newX = cursor.X - (int)_dragOffset.X;
+            int newY = cursor.Y - (int)_dragOffset.Y;
+            DesktopService.MoveEmbeddedWindow(this, newX, newY);
+        }
+        else
+        {
+            var source = PresentationSource.FromVisual(this);
+            if (source != null)
+            {
+                var scale = source.CompositionTarget.TransformFromDevice;
+                Left = cursor.X * scale.M11 - _dragOffset.X;
+                Top  = cursor.Y * scale.M22 - _dragOffset.Y;
+            }
+        }
     }
 
     private void Widget_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -263,6 +274,10 @@ public partial class WidgetWindow : Window
             var bounds = DesktopService.GetWindowBounds(this);
             DisplayService.SaveDisplayPosition(_settings, _currentDisplayConfiguration, bounds.Left, bounds.Top);
             SettingsService.Save(App.Settings);
+        }
+        else
+        {
+            SaveCurrentPosition();
         }
 
         if (wasClick)

@@ -6,19 +6,21 @@
         Width="500"
         MinWidth="450"
         SizeToContent="Height"
-        MinHeight="460"
+        MinHeight="640"
         WindowStartupLocation="CenterScreen"
         Background="#FF181825"
         Foreground="#FFCDD6F4"
         WindowStyle="SingleBorderWindow"
+        Loaded="Window_Loaded"
         DataContext="{Binding RelativeSource={RelativeSource Self}}">
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>   <!-- 0: Widget Appearance -->
+            <RowDefinition Height="Auto"/>   <!-- 1: Display Components -->
+            <RowDefinition Height="Auto"/>   <!-- 2: Position picker -->
+            <RowDefinition Height="Auto"/>   <!-- 3: Separator -->
+            <RowDefinition Height="Auto"/>   <!-- 4: Buttons -->
         </Grid.RowDefinitions>
 
         <!-- Widget Appearance -->
@@ -220,11 +222,46 @@
             </StackPanel>
         </Border>
 
+        <!-- Position Picker -->
+        <Border Grid.Row="2" Background="#FF1E1E2E" Margin="16,8,16,0" CornerRadius="6" Padding="16">
+            <StackPanel>
+                <!-- Position header -->
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="Widget Position"
+                               FontSize="12" FontWeight="SemiBold" Foreground="#FF89B4FA"
+                               VerticalAlignment="Center"/>
+                    <Rectangle Grid.Column="2" Height="1" Fill="#FF454570" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding WidgetPositionText}"
+                               FontSize="11" Foreground="#FF6C7086"
+                               FontFamily="Consolas, Courier New"
+                               VerticalAlignment="Center"/>
+                </Grid>
+                <!-- Screen-map canvas -->
+                <Canvas x:Name="ScreenMapCanvas"
+                        Height="110"
+                        Background="#FF0D0D1A"
+                        ClipToBounds="True"/>
+                <!-- Hint text -->
+                <TextBlock Margin="0,4,0,0"
+                           FontSize="10" Foreground="#FF6C7086"
+                           Text="Drag the blue marker to reposition the widget — it moves live."/>
+            </StackPanel>
+        </Border>
+
         <!-- Separator -->
-        <Rectangle Grid.Row="2" Height="1" Fill="#FF454570" Margin="16,12,16,12"/>
+        <Rectangle Grid.Row="3" Height="1" Fill="#FF454570" Margin="16,12,16,12"/>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,0,16,16">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,0,16,16">
             <Button Content="Cancel" Style="{StaticResource SubtleButton}"
                     Margin="0,0,8,0" Click="Cancel_Click"/>
             <Button Content="OK"     Style="{StaticResource AccentButton}"

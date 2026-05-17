@@ -4,9 +4,9 @@ echo Build and install WinWidgetBattery
 
 :: Kill widget is running, so it can be re-built
 taskkill /IM WinWidgetBattery.exe /F 2>nul
-dotnet publish WinWidgetBattery.csproj -c Release --self-contained false
+dotnet publish WinWidgetBattery.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
 
-:: Make directory to hold the dll's and assets
+:: Make directory to hold the exe and assets
 mkdir c:\opt\bin\winwidgets 2>nul
 xcopy /E /Y bin\Release\publish\* c:\opt\bin\winwidgets\
 
