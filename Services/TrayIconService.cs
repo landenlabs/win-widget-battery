@@ -1,24 +1,19 @@
 // Copyright (c) 2026
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace WinWidgetBattery.Services;
 
 public class TrayIconService : IDisposable
 {
-    private readonly NotifyIcon _notifyIcon;
-    private readonly ContextMenuStrip _menu;
-
-    // Static items reused on each Opening rebuild
-    private readonly ToolStripMenuItem  _addWidgetItem;
-    private readonly ToolStripSeparator _topSep = new();
-    private readonly ToolStripSeparator _botSep = new();
-    private readonly ToolStripMenuItem  _aboutItem;
-    private readonly ToolStripMenuItem  _exitItem;
-
+    private NotifyIcon? _notifyIcon;
+    private readonly Action _onAddWidget;
     private readonly Func<List<Models.WidgetSettings>> _getWidgets;
     private readonly Action<string> _onWidgetSettings;
     private readonly Action<string> _onWidgetRemove;
+    private readonly Action _onAbout;
+    private readonly Action _onExit;
 
     public TrayIconService(
         Action onAddWidget,
@@ -28,70 +23,74 @@ public class TrayIconService : IDisposable
         Action onAbout,
         Action onExit)
     {
+        _onAddWidget      = onAddWidget;
         _getWidgets       = getWidgets;
         _onWidgetSettings = onWidgetSettings;
         _onWidgetRemove   = onWidgetRemove;
+        _onAbout          = onAbout;
+        _onExit           = onExit;
 
-        _addWidgetItem = new ToolStripMenuItem("+ Add Widget", null, (_, _) => UIInvoke(onAddWidget));
-        _aboutItem     = new ToolStripMenuItem("About",        null, (_, _) => UIInvoke(onAbout));
-        _exitItem      = new ToolStripMenuItem("Exit",         null, (_, _) => UIInvoke(onExit));
+        InitializeTrayIcon();
+    }
 
-        _menu = new ContextMenuStrip();
-        _menu.Opening += OnMenuOpening;
-
+    private void InitializeTrayIcon()
+    {
         _notifyIcon = new NotifyIcon
         {
-            Icon             = LoadTrayIcon(),
-            Visible          = true,
-            Text             = "Battery Widget",
-            ContextMenuStrip = _menu
+            Icon    = LoadTrayIcon(),
+            Visible = true,
+            Text    = "Battery Widget"
         };
-        _notifyIcon.DoubleClick += (_, _) =>
-            UIInvoke(() => _onWidgetSettings(_getWidgets().FirstOrDefault()?.Id ?? ""));
+        _notifyIcon.DoubleClick += (_, _) => Invoke(() =>
+            _onWidgetSettings(_getWidgets().FirstOrDefault()?.Id ?? ""));
+        BuildMenu();
     }
 
-    public void Dispose()
-    {
-        _notifyIcon.Visible = false;
-        _notifyIcon.Dispose();
-        _menu.Dispose();
-    }
+    public void RebuildMenu() => BuildMenu();
 
-    private void OnMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+    private void BuildMenu()
     {
-        _menu.Items.Clear();
-        _menu.Items.Add(_addWidgetItem);
-        _menu.Items.Add(_topSep);
+        if (_notifyIcon == null) return;
+
+        var menu = new ContextMenuStrip();
 
         var widgets = _getWidgets();
+        bool canRemove = widgets.Count > 1;
+
         for (int i = 0; i < widgets.Count; i++)
         {
-            var id    = widgets[i].Id;
-            var label = widgets.Count == 1 ? "Battery Widget" : $"Battery Widget {i + 1}";
+            string id    = widgets[i].Id;
+            string label = widgets.Count == 1 ? "Battery Widget" : $"Battery Widget {i + 1}";
 
-            var widgetMenu = new ToolStripMenuItem(label);
-            widgetMenu.DropDownItems.Add("Settings", null, (_, _) => UIInvoke(() => _onWidgetSettings(id)));
-            widgetMenu.DropDownItems.Add("Remove",   null, (_, _) => UIInvoke(() => _onWidgetRemove(id)));
+            var sub = new ToolStripMenuItem(label);
+            sub.DropDownItems.Add("Settings", null, (_, _) => Invoke(() => _onWidgetSettings(id)));
 
-            // Disable Remove when it's the only widget
-            ((ToolStripMenuItem)widgetMenu.DropDownItems[1]).Enabled = widgets.Count > 1;
+            var removeItem = new ToolStripMenuItem("Remove Widget", null,
+                (_, _) => Invoke(() => _onWidgetRemove(id)));
+            removeItem.Enabled = canRemove;
+            sub.DropDownItems.Add(removeItem);
 
-            _menu.Items.Add(widgetMenu);
+            menu.Items.Add(sub);
         }
 
-        _menu.Items.Add(_botSep);
-        _menu.Items.Add(_aboutItem);
-        _menu.Items.Add(_exitItem);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("+ Add Widget", null, (_, _) => Invoke(_onAddWidget));
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("About", null, (_, _) => Invoke(_onAbout));
+        menu.Items.Add("Exit",  null, (_, _) => Invoke(_onExit));
+
+        _notifyIcon.ContextMenuStrip = menu;
     }
 
-    // Dispatch to WPF UI thread so callers don't have to think about it.
-    private static void UIInvoke(Action action)
+    private static void Invoke(Action action)
     {
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher is null) return;
-        if (dispatcher.CheckAccess()) action();
-        else dispatcher.Invoke(action);
+        if (System.Windows.Application.Current?.Dispatcher.CheckAccess() == true)
+            action();
+        else
+            System.Windows.Application.Current?.Dispatcher.Invoke(action);
     }
+
+    public void Dispose() => _notifyIcon?.Dispose();
 
     private static Icon LoadTrayIcon()
     {

@@ -77,6 +77,7 @@ public partial class App : System.Windows.Application
         Settings.Widgets.Add(newWidget);
         SettingsService.Save(Settings);
         CreateAndShowWidget(newWidget);
+        _trayIcon?.RebuildMenu();
     }
 
     public void RemoveWidget(string widgetId)
@@ -94,6 +95,7 @@ public partial class App : System.Windows.Application
             Settings.Widgets.Remove(settings);
             SettingsService.Save(Settings);
         }
+        _trayIcon?.RebuildMenu();
     }
 
     private void OpenAbout()
