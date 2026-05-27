@@ -90,6 +90,13 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         set { _embedInWallpaper = value; OnPropertyChanged(); }
     }
 
+    private bool _autoStartEnabled;
+    public bool AutoStartEnabled
+    {
+        get => _autoStartEnabled;
+        set { _autoStartEnabled = value; OnPropertyChanged(); }
+    }
+
     // ── Component visibility ─────────────────────────────────────────────────
 
     private bool _showTitle;
@@ -213,6 +220,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _updateInterval    = widget.UpdateInterval;
         _fontScalePercent  = _origFontScalePercent;
         _embedInWallpaper  = widget.EmbedInWallpaper;
+        _autoStartEnabled  = AutoStartService.IsEnabled();
         _showTitle         = widget.ShowTitle;
         _showBatteryIcon   = widget.ShowBatteryIcon;
         _showPercentage    = widget.ShowPercentage;
@@ -229,6 +237,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         OnPropertyChanged(nameof(UpdateInterval));
         OnPropertyChanged(nameof(FontScalePercent));
         OnPropertyChanged(nameof(EmbedInWallpaper));
+        OnPropertyChanged(nameof(AutoStartEnabled));
         OnPropertyChanged(nameof(ShowTitle));
         OnPropertyChanged(nameof(ShowBatteryIcon));
         OnPropertyChanged(nameof(ShowPercentage));
@@ -476,6 +485,9 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             _livePreviewTarget.Left = _editPosX;
             _livePreviewTarget.Top  = _editPosY;
         }
+
+        AutoStartService.SetEnabled(_autoStartEnabled);
+        App.Settings.AutoStart = _autoStartEnabled;
 
         SettingsService.Save(App.Settings);
         DialogResult = true;

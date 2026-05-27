@@ -47,6 +47,7 @@ public class BatteryInfo
 public class AppSettings
 {
     public List<WidgetSettings> Widgets { get; set; } = [];
+    public bool AutoStart { get; set; } = false;
 }
 
 public class WidgetSettings

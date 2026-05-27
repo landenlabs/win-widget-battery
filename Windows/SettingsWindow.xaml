@@ -130,6 +130,15 @@
                               VerticalAlignment="Center"/>
                 </StackPanel>
 
+                <!-- Auto-start on login row -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
+                    <CheckBox x:Name="AutoStartCheck"
+                              Content="Auto-start on login"
+                              IsChecked="{Binding AutoStartEnabled, Mode=TwoWay}"
+                              Foreground="#FFA6ADC8"
+                              VerticalAlignment="Center"/>
+                </StackPanel>
+
             </StackPanel>
         </Border>
 
