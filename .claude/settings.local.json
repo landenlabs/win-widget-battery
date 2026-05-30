@@ -22,7 +22,8 @@
       "Bash(grep -E '\\\\.\\(xaml|cs|json|config|csproj\\)$')",
       "Bash(Get-ChildItem -Path \"c:\\\\opt\\\\projects\\\\projects-c#\\\\widgets\\\\win-widget-battery\" -Recurse -Directory)",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "PowerShell(Get-ChildItem -Path \"c:\\\\opt\\\\projects\\\\projects-c#\\\\widgets\\\\win-widget-battery\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Substring\\(50\\) })"
+      "PowerShell(Get-ChildItem -Path \"c:\\\\opt\\\\projects\\\\projects-c#\\\\widgets\\\\win-widget-battery\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Substring\\(50\\) })",
+      "Bash(grep -iv \"//\")"
     ]
   }
 }

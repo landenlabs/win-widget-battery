@@ -48,7 +48,8 @@ public partial class App : System.Windows.Application
             onWidgetSettings: id => _widgetWindows.FirstOrDefault(w => w.WidgetId == id)?.OpenSettings(),
             onWidgetRemove:   RemoveWidget,
             onAbout:          OpenAbout,
-            onExit:           Shutdown
+            onExit:           Shutdown,
+            getBattery:       () => _batteryService.GetBatteryStatus()
         );
     }
 
