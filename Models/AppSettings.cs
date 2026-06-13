@@ -62,6 +62,7 @@ public class WidgetSettings
     public bool ShowColorBar { get; set; } = true;
     public bool ShowStatusText { get; set; } = true;
     public bool ShowTimeRemaining { get; set; } = true;
+    public bool ShowIdleCountdown { get; set; } = false;
     public bool ShowDeviceBatteries { get; set; } = true;
     public bool EmbedInWallpaper { get; set; } = true;
     public string BackgroundColor { get; set; } = "#1E1E2E";

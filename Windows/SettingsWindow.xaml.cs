@@ -141,6 +141,13 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         set { _showTimeRemaining = value; OnPropertyChanged(); LivePreviewVisibility(); }
     }
 
+    private bool _showIdleCountdown;
+    public bool ShowIdleCountdown
+    {
+        get => _showIdleCountdown;
+        set { _showIdleCountdown = value; OnPropertyChanged(); LivePreviewVisibility(); }
+    }
+
     private bool _showDeviceBatteries;
     public bool ShowDeviceBatteries
     {
@@ -182,6 +189,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private readonly bool _origShowColorBar;
     private readonly bool _origShowStatusText;
     private readonly bool _origShowTimeRemaining;
+    private readonly bool _origShowIdleCountdown;
     private readonly bool _origShowDeviceBatteries;
 
     // ── Constructor ──────────────────────────────────────────────────────────
@@ -211,6 +219,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _origShowColorBar     = widget.ShowColorBar;
         _origShowStatusText       = widget.ShowStatusText;
         _origShowTimeRemaining    = widget.ShowTimeRemaining;
+        _origShowIdleCountdown    = widget.ShowIdleCountdown;
         _origShowDeviceBatteries  = widget.ShowDeviceBatteries;
 
         // Load working copies
@@ -227,6 +236,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _showColorBar      = widget.ShowColorBar;
         _showStatusText       = widget.ShowStatusText;
         _showTimeRemaining    = widget.ShowTimeRemaining;
+        _showIdleCountdown    = widget.ShowIdleCountdown;
         _showDeviceBatteries  = widget.ShowDeviceBatteries;
 
         OnPropertyChanged(nameof(BgColorHex));
@@ -244,6 +254,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         OnPropertyChanged(nameof(ShowColorBar));
         OnPropertyChanged(nameof(ShowStatusText));
         OnPropertyChanged(nameof(ShowTimeRemaining));
+        OnPropertyChanged(nameof(ShowIdleCountdown));
         OnPropertyChanged(nameof(ShowDeviceBatteries));
 
         UpdateColorHexLabel();
@@ -315,7 +326,8 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     {
         _livePreviewTarget?.ApplyVisibilitySettings(
             _showTitle, _showBatteryIcon, _showPercentage,
-            _showColorBar, _showStatusText, _showTimeRemaining, _showDeviceBatteries);
+            _showColorBar, _showStatusText, _showTimeRemaining,
+            _showIdleCountdown, _showDeviceBatteries);
     }
 
     private void UpdateColorHexLabel()
@@ -476,6 +488,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _widget.ShowColorBar      = _showColorBar;
         _widget.ShowStatusText       = _showStatusText;
         _widget.ShowTimeRemaining    = _showTimeRemaining;
+        _widget.ShowIdleCountdown    = _showIdleCountdown;
         _widget.ShowDeviceBatteries  = _showDeviceBatteries;
 
         var config = DisplayService.GetCurrentDisplayConfiguration();
@@ -501,7 +514,8 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _livePreviewTarget?.ApplyFontScale(_origFontScalePercent);
         _livePreviewTarget?.ApplyVisibilitySettings(
             _origShowTitle, _origShowBatteryIcon, _origShowPercentage,
-            _origShowColorBar, _origShowStatusText, _origShowTimeRemaining, _origShowDeviceBatteries);
+            _origShowColorBar, _origShowStatusText, _origShowTimeRemaining,
+            _origShowIdleCountdown, _origShowDeviceBatteries);
         if (_livePreviewTarget != null)
         {
             _livePreviewTarget.Left = _origPosX;

@@ -165,6 +165,7 @@
                         <RowDefinition Height="30"/>
                         <RowDefinition Height="30"/>
                         <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
                     </Grid.RowDefinitions>
 
                     <!-- Header -->
@@ -220,10 +221,18 @@
                                IsChecked="{Binding ShowTimeRemaining, Mode=TwoWay}"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-                    <!-- Device Batteries -->
+                    <!-- Sleep Countdown -->
                     <TextBlock Grid.Row="8" Grid.Column="0"
-                               Text="Device Batteries" Foreground="#FFA6ADC8" VerticalAlignment="Center"/>
+                               Text="Sleep Countdown" Foreground="#FFA6ADC8" VerticalAlignment="Center"
+                               ToolTip="Time until the CPU stops from inactivity (sleep or hibernate)"/>
                     <CheckBox  Grid.Row="8" Grid.Column="1"
+                               IsChecked="{Binding ShowIdleCountdown, Mode=TwoWay}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <!-- Device Batteries -->
+                    <TextBlock Grid.Row="9" Grid.Column="0"
+                               Text="Device Batteries" Foreground="#FFA6ADC8" VerticalAlignment="Center"/>
+                    <CheckBox  Grid.Row="9" Grid.Column="1"
                                IsChecked="{Binding ShowDeviceBatteries, Mode=TwoWay}"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 

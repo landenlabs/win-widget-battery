@@ -13,6 +13,7 @@ public partial class App : System.Windows.Application
     private readonly List<WidgetWindow> _widgetWindows = [];
     private readonly BatteryService _batteryService = new();
     private readonly DeviceBatteryService _deviceBatteryService = new();
+    private readonly PowerInfoService _powerInfoService = new();
 
     public static AppSettings Settings { get; private set; } = new();
 
@@ -63,7 +64,7 @@ public partial class App : System.Windows.Application
 
     private void CreateAndShowWidget(WidgetSettings settings)
     {
-        var window = new WidgetWindow(settings, _batteryService, _deviceBatteryService);
+        var window = new WidgetWindow(settings, _batteryService, _deviceBatteryService, _powerInfoService);
         _widgetWindows.Add(window);
         window.Show();
     }

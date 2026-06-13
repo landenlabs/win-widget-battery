@@ -14,6 +14,7 @@ public partial class WidgetWindow : Window
     private readonly WidgetSettings _settings;
     private readonly BatteryService _batteryService;
     private readonly DeviceBatteryService _deviceBatteryService;
+    private readonly PowerInfoService _powerInfoService;
     private System.Windows.Threading.DispatcherTimer? _updateTimer;
     private System.Windows.Threading.DispatcherTimer? _displayCheckTimer;
     private DisplayConfiguration _currentDisplayConfiguration;
@@ -30,13 +31,15 @@ public partial class WidgetWindow : Window
 
     public string WidgetId => _settings.Id;
 
-    public WidgetWindow(WidgetSettings settings, BatteryService batteryService, DeviceBatteryService deviceBatteryService)
+    public WidgetWindow(WidgetSettings settings, BatteryService batteryService,
+        DeviceBatteryService deviceBatteryService, PowerInfoService powerInfoService)
     {
         InitializeComponent();
 
         _settings = settings;
         _batteryService = batteryService;
         _deviceBatteryService = deviceBatteryService;
+        _powerInfoService = powerInfoService;
 
         _bgColorHex = string.IsNullOrEmpty(settings.BackgroundColor) ? "#1E1E2E" : settings.BackgroundColor;
         _bgOpacity = settings.BackgroundOpacity > 0 ? settings.BackgroundOpacity : 0.80;
@@ -118,22 +121,42 @@ public partial class WidgetWindow : Window
             BatteryPercentText.Text = batteryInfo.HasBattery ? $" {batteryInfo.BatteryPercentage}%" : " --";
             StatusText.Text = $"Status: {batteryInfo.Status}";
 
-            bool hasTime = batteryInfo.TimeRemaining.HasValue && batteryInfo.TimeRemaining.Value.TotalSeconds > 0;
-            if (hasTime && _settings.ShowTimeRemaining)
+            if (_settings.ShowTimeRemaining)
             {
-                var time = batteryInfo.TimeRemaining.Value;
-                if (time.TotalHours >= 1)
-                    TimeRemainingText.Text = $"Remaining: {time.Hours}h {time.Minutes}m";
-                else if (time.TotalMinutes >= 1)
-                    TimeRemainingText.Text = $"Remaining: {time.Minutes}m {time.Seconds}s";
+                if (batteryInfo.TimeRemaining is { TotalSeconds: > 0 } time)
+                {
+                    if (time.TotalHours >= 1)
+                        TimeRemainingText.Text = $"Remaining: {time.Hours}h {time.Minutes}m";
+                    else if (time.TotalMinutes >= 1)
+                        TimeRemainingText.Text = $"Remaining: {time.Minutes}m {time.Seconds}s";
+                    else
+                        TimeRemainingText.Text = $"Remaining: {time.Seconds}s";
+                }
                 else
-                    TimeRemainingText.Text = $"Remaining: {time.Seconds}s";
+                {
+                    // Windows only estimates discharge time. On AC (or no battery) there is
+                    // no figure; on battery it can be briefly unknown while recalculating.
+                    TimeRemainingText.Text = batteryInfo.IsCharging || !batteryInfo.HasBattery
+                        ? "Remaining: on AC power"
+                        : "Remaining: estimating…";
+                }
                 TimeRemainingText.Visibility = Visibility.Visible;
             }
             else
             {
                 TimeRemainingText.Text = "";
                 TimeRemainingText.Visibility = Visibility.Collapsed;
+            }
+
+            if (_settings.ShowIdleCountdown)
+            {
+                IdleCountdownText.Text = _powerInfoService.GetIdleCountdown(batteryInfo.IsCharging).Format();
+                IdleCountdownText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                IdleCountdownText.Text = "";
+                IdleCountdownText.Visibility = Visibility.Collapsed;
             }
 
             var percentage = batteryInfo.HasBattery ? batteryInfo.BatteryPercentage / 100.0 : 0.0;
@@ -155,14 +178,17 @@ public partial class WidgetWindow : Window
         double factor = Math.Max(0.25, percent / 100.0);
         BatteryIconText.FontSize = Math.Max(8, 24 * factor);
         BatteryPercentText.FontSize = Math.Max(8, 24 * factor);
-        StatusText.FontSize = Math.Max(6, 10 * factor);
-        TimeRemainingText.FontSize = Math.Max(6, 9 * factor);
+        // Message lines at ~80% of the main 24px font for readability.
+        StatusText.FontSize = Math.Max(8, 19 * factor);
+        TimeRemainingText.FontSize = Math.Max(8, 19 * factor);
+        IdleCountdownText.FontSize = Math.Max(8, 19 * factor);
         TitleText.FontSize = Math.Max(6, 11 * factor);
         DeviceBatteriesList.FontSize = Math.Max(8, 11 * factor);
     }
 
     public void ApplyVisibilitySettings(bool showTitle, bool showBatteryIcon, bool showPercentage,
-        bool showColorBar, bool showStatusText, bool showTimeRemaining, bool showDeviceBatteries)
+        bool showColorBar, bool showStatusText, bool showTimeRemaining, bool showIdleCountdown,
+        bool showDeviceBatteries)
     {
         TitleSection.Visibility        = showTitle       ? Visibility.Visible : Visibility.Collapsed;
         BatteryIconText.Visibility     = showBatteryIcon ? Visibility.Visible : Visibility.Collapsed;
@@ -172,6 +198,9 @@ public partial class WidgetWindow : Window
         if (!showTimeRemaining)
             TimeRemainingText.Visibility = Visibility.Collapsed;
         // showTimeRemaining=true: UpdateBatteryDisplay manages visibility based on data availability
+        if (!showIdleCountdown)
+            IdleCountdownText.Visibility = Visibility.Collapsed;
+        // showIdleCountdown=true: UpdateBatteryDisplay manages visibility
 
         // Device batteries section: also gated on whether devices exist
         if (!showDeviceBatteries)
@@ -182,7 +211,7 @@ public partial class WidgetWindow : Window
     private void ApplyVisibilitySettings() =>
         ApplyVisibilitySettings(_settings.ShowTitle, _settings.ShowBatteryIcon, _settings.ShowPercentage,
             _settings.ShowColorBar, _settings.ShowStatusText, _settings.ShowTimeRemaining,
-            _settings.ShowDeviceBatteries);
+            _settings.ShowIdleCountdown, _settings.ShowDeviceBatteries);
 
     // ── Hover ────────────────────────────────────────────────────────────────
 
@@ -311,7 +340,7 @@ public partial class WidgetWindow : Window
         if (source is not DependencyObject element) return false;
         while (element != null)
         {
-            if (element == BatteryContentGrid) return true;
+            if (element == BatteryContentGrid || element == StatusSection) return true;
             element = VisualTreeHelper.GetParent(element);
         }
         return false;
