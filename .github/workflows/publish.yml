@@ -1,4 +1,4 @@
-name: Build, Sign, and Publish Dual Releases
+name: Build, Sign, and Publish Release Variants
 
 on:
   push:
@@ -31,9 +31,9 @@ jobs:
         run: dotnet restore
 
       # -----------------------------------------------------------------
-      # 1. BUILD SELF-CONTAINED VARIANT (Zero-Dependency)
+      # 1. BUILD ZERO-DEPENDENCY PORTABLE VARIANT (Heavy)
       # -----------------------------------------------------------------
-      - name: Publish Self-Contained
+      - name: Publish Self-Contained (x64)
         shell: pwsh
         run: |
           dotnet publish WinWidgetBattery.csproj -c Release `
@@ -45,9 +45,9 @@ jobs:
             -o ./artifacts/self-contained
 
       # -----------------------------------------------------------------
-      # 2. BUILD FRAMEWORK-DEPENDENT VARIANT (Lightweight ~6MB)
+      # 2. BUILD FRAMEWORK-DEPENDENT WINDOWS x64 VARIANT (~23MB)
       # -----------------------------------------------------------------
-      - name: Publish Framework-Dependent
+      - name: Publish Framework-Dependent (x64)
         shell: pwsh
         run: |
           dotnet publish WinWidgetBattery.csproj -c Release `
@@ -56,33 +56,46 @@ jobs:
             /p:PublishSingleFile=true `
             /p:DebugType=none `
             /p:DebugSymbols=false `
-            -o ./artifacts/lightweight
+            -o ./artifacts/lightweight-x64
 
       # -----------------------------------------------------------------
-      # 3. CODE SIGNING (Applies to both outputs if certificate exists)
+      # 3. BUILD ULTRA-LIGHTWEIGHT ANYCPU VARIANT (~6MB)
+      # -----------------------------------------------------------------
+      - name: Publish Ultra-Lightweight (AnyCPU)
+        shell: pwsh
+        run: |
+          # Removing the '-r win-x64' flag allows it to build as a tiny, native IL file
+          dotnet publish WinWidgetBattery.csproj -c Release `
+            --self-contained false `
+            /p:PublishSingleFile=true `
+            /p:DebugType=none `
+            /p:DebugSymbols=false `
+            -o ./artifacts/ultra-lightweight
+          
+          # Rename this file slightly so it doesn't collide during asset upload
+          Rename-Item -Path ./artifacts/ultra-lightweight/WinWidgetBattery.exe -NewName "WinWidgetBattery-UltraLight.exe"
+
+      # -----------------------------------------------------------------
+      # 4. CODE SIGNING (Applies to all three outputs if certificate exists)
       # -----------------------------------------------------------------
       - name: Sign Executables
         if: ${{ env.CODE_SIGN_PFX_BASE64 != '' }}
         shell: pwsh
         run: |
-          # Locate signtool from the Windows SDK
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
             Sort-Object FullName -Descending | Select-Object -First 1
           if (-not $signtool) { throw "signtool.exe not found on the runner." }
 
-          # Decode PFX certificate to a temporary file
           $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODE_SIGN_PFX_BASE64))
 
           try {
-            # Find and sign all generated .exe files across both build folders
             Get-ChildItem "./artifacts/**/*.exe" | ForEach-Object {
               Write-Host "Signing: $($_.FullName)"
               & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:CODE_SIGN_PASSWORD `
                 /tr $env:TIMESTAMP_URL /td SHA256 "$($_.FullName)"
               if ($LASTEXITCODE -ne 0) { throw "signtool sign failed on $($_.Name) (exit $LASTEXITCODE)." }
               
-              # Verification
               $sig = Get-AuthenticodeSignature "$($_.FullName)"
               Write-Host "Signature status for $($_.Name): $($sig.Status)"
               if ($sig.Status -ne 'Valid') { throw "Post-sign verification failed for $($_.Name): $($sig.Status)" }
@@ -93,12 +106,11 @@ jobs:
           }
 
       # -----------------------------------------------------------------
-      # 4. PACKAGING ARTIFACTS
+      # 5. PACKAGING ARTIFACTS
       # -----------------------------------------------------------------
       - name: Zip Self-Contained Portable Package
         shell: pwsh
         run: |
-          # Package the heavy self-contained build into a compressed zip (~25MB download)
           Compress-Archive -Path ./artifacts/self-contained/*.exe -DestinationPath ./artifacts/WinWidgetBattery-Portable.zip
 
       - name: Upload Workflow Artifact (30-day retention)
@@ -107,11 +119,12 @@ jobs:
           name: Production-Build-Packages
           path: |
             ./artifacts/WinWidgetBattery-Portable.zip
-            ./artifacts/lightweight/WinWidgetBattery.exe
+            ./artifacts/lightweight-x64/WinWidgetBattery.exe
+            ./artifacts/ultra-lightweight/WinWidgetBattery-UltraLight.exe
           retention-days: 30
 
       # -----------------------------------------------------------------
-      # 5. CREATE GITHUB RELEASE
+      # 6. CREATE GITHUB RELEASE
       # -----------------------------------------------------------------
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
@@ -119,12 +132,14 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            ## Distribution Options
+            ## Available Build Variants
             
-            * 📦 **WinWidgetBattery-Portable.zip**: Fully self-contained. No .NET runtime required. Just extract the single executable and run. (Recommended for quick, zero-friction use).
-            * 🪶 **WinWidgetBattery.exe**: Ultra-lightweight standalone file (~6 MB). Requires the **.NET 10 Desktop Runtime** to be installed on your machine.
+            * 📦 **WinWidgetBattery-Portable.zip**: Fully self-contained build. Zero dependencies required. Extract the executable and run anywhere.
+            * ⚙️ **WinWidgetBattery.exe**: Framework-dependent x64 standalone executable (~23 MB). Optimized for 64-bit Windows environments with native desktop runtimes pre-installed.
+            * 🪶 **WinWidgetBattery-UltraLight.exe**: Pure architecture-neutral binary (~6 MB). Requires that both the target machine has the **.NET 10 Desktop Runtime** installed and handles its own framework layout assemblies.
           draft: false
           prerelease: false
           files: |
             ./artifacts/WinWidgetBattery-Portable.zip
-            ./artifacts/lightweight/WinWidgetBattery.exe
+            ./artifacts/lightweight-x64/WinWidgetBattery.exe
+            ./artifacts/ultra-lightweight/WinWidgetBattery-UltraLight.exe
