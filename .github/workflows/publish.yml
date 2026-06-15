@@ -1,0 +1,103 @@
+name: Build, Sign, and Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    env:
+      CODE_SIGN_PFX_BASE64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+      CODE_SIGN_PASSWORD: ${{ secrets.CODE_SIGN_PASSWORD }}
+      TIMESTAMP_URL: http://timestamp.digicert.com
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Publish (Aggressively Optimized Single-File)
+        shell: pwsh
+        run: |
+          dotnet publish -c Release `
+            -r win-x64 `
+            --self-contained true `
+            /p:PublishSingleFile=true `
+            /p:EnableCompressionInSingleFile=true `
+            /p:PublishTrimmed=true `
+            /p:TrimMode=full `
+            /p:DebugType=none `
+            /p:DebugSymbols=false `
+            -o ./artifacts/win-x64
+
+      - name: Sign Executable
+        if: ${{ env.CODE_SIGN_PFX_BASE64 != '' }}
+        shell: pwsh
+        run: |
+          # Dynamically locate the published .exe regardless of project name
+          $exe = Get-ChildItem "./artifacts/win-x64/*.exe" | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $exe) { throw "No published executable found to sign." }
+          Write-Host "Targeting executable for signing: $exe"
+
+          # Locate signtool from the Windows SDK
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe not found on the runner." }
+
+          # Decode PFX certificate
+          $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODE_SIGN_PFX_BASE64))
+
+          try {
+            & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:CODE_SIGN_PASSWORD `
+              /tr $env:TIMESTAMP_URL /td SHA256 "$exe"
+            if ($LASTEXITCODE -ne 0) { throw "signtool sign failed (exit $LASTEXITCODE)." }
+          }
+          finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+          }
+
+          # Verification
+          $sig = Get-AuthenticodeSignature "$exe"
+          Write-Host "Signature status: $($sig.Status) | Signer: $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid') { throw "Post-sign verification failed: $($sig.Status)" }
+
+      - name: Zip Artifact for Backup
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ./artifacts/win-x64/* -DestinationPath ./artifacts/Release-Package.zip
+
+      - name: Upload Workflow Artifact (30-day retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Release-Target
+          path: ./artifacts/Release-Package.zip
+          retention-days: 30
+
+      - name: Create GitHub Release and Upload Binary
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Automated Release ${{ github.ref_name }}
+            
+            Self-contained single-file binary optimized for Windows x64 architectures.
+          draft: false
+          prerelease: false
+          files: |
+            ./artifacts/win-x64/*.exe
