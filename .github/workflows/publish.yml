@@ -1,4 +1,4 @@
-name: Build, Sign, and Publish Release
+name: Build, Sign, and Publish 3 Release Variants
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build-and-release:
+  publish-windows:
     runs-on: windows-latest
     permissions:
       contents: write
@@ -28,7 +28,24 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore
 
-      - name: Publish Framework-Dependent Single File
+      # -----------------------------------------------------------------
+      # 1. FLAVOR 1: ZERO-DEPENDENCY PORTABLE VARIANT (Heavy ~68MB unpack)
+      # -----------------------------------------------------------------
+      - name: Publish Self-Contained (x64)
+        shell: pwsh
+        run: |
+          dotnet publish WinWidgetBattery.csproj -c Release `
+            -r win-x64 `
+            --self-contained true `
+            /p:PublishSingleFile=true `
+            /p:DebugType=none `
+            /p:DebugSymbols=false `
+            -o ./artifacts/self-contained
+
+      # -----------------------------------------------------------------
+      # 2. FLAVOR 2: FRAMEWORK-DEPENDENT WINDOWS x64 VARIANT (~23MB)
+      # -----------------------------------------------------------------
+      - name: Publish Framework-Dependent (x64)
         shell: pwsh
         run: |
           dotnet publish WinWidgetBattery.csproj -c Release `
@@ -37,64 +54,87 @@ jobs:
             /p:PublishSingleFile=true `
             /p:DebugType=none `
             /p:DebugSymbols=false `
-            -o ./publish
+            -o ./artifacts/lightweight-x64
 
-      - name: Sign Executable
+      # -----------------------------------------------------------------
+      # 3. FLAVOR 3: PURE ULTRA-LIGHTWEIGHT ANYCPU VARIANT (~6MB)
+      # -----------------------------------------------------------------
+      - name: Publish Ultra-Lightweight (AnyCPU)
+        shell: pwsh
+        run: |
+          # Single-line execution with UseAppHost=false strips the native x64 wrapper bloat,
+          # successfully reducing this executable back to its true ~6MB baseline.
+          dotnet publish WinWidgetBattery.csproj -c Release --self-contained false /p:PublishSingleFile=true /p:UseAppHost=false /p:DebugType=none /p:DebugSymbols=false -o ./artifacts/ultra-lightweight
+          
+          # Rename this file slightly so it doesn't collide during asset upload
+          Rename-Item -Path ./artifacts/ultra-lightweight/WinWidgetBattery.exe -NewName "WinWidgetBattery-UltraLight.exe"
+
+      # -----------------------------------------------------------------
+      # 4. CODE SIGNING (Applies to all generated .exes if certificate exists)
+      # -----------------------------------------------------------------
+      - name: Sign Executables
         if: ${{ env.CODE_SIGN_PFX_BASE64 != '' }}
         shell: pwsh
         run: |
-          # Dynamically grab the compiled .exe inside the publish folder
-          $exe = Get-ChildItem "./publish/*.exe" | Select-Object -First 1 -ExpandProperty FullName
-          if (-not $exe) { throw "No published executable found to sign." }
-
-          # Locate signtool from the Windows SDK
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
             Sort-Object FullName -Descending | Select-Object -First 1
           if (-not $signtool) { throw "signtool.exe not found on the runner." }
 
-          # Decode PFX certificate
           $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODE_SIGN_PFX_BASE64))
 
           try {
-            & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:CODE_SIGN_PASSWORD `
-              /tr $env:TIMESTAMP_URL /td SHA256 "$exe"
-            if ($LASTEXITCODE -ne 0) { throw "signtool sign failed (exit $LASTEXITCODE)." }
+            Get-ChildItem "./artifacts/**/*.exe" | ForEach-Object {
+              Write-Host "Signing: $($_.FullName)"
+              & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:CODE_SIGN_PASSWORD `
+                /tr $env:TIMESTAMP_URL /td SHA256 "$($_.FullName)"
+              if ($LASTEXITCODE -ne 0) { throw "signtool sign failed on $($_.Name) (exit $LASTEXITCODE)." }
+              
+              $sig = Get-AuthenticodeSignature "$($_.FullName)"
+              Write-Host "Signature status for $($_.Name): $($sig.Status)"
+              if ($sig.Status -ne 'Valid') { throw "Post-sign verification failed for $($_.Name): $($sig.Status)" }
+            }
           }
           finally {
             Remove-Item $pfx -Force -ErrorAction SilentlyContinue
           }
 
-          # Post-sign verification check
-          $sig = Get-AuthenticodeSignature "$exe"
-          Write-Host "Signature status: $($sig.Status)"
-          if ($sig.Status -ne 'Valid') { throw "Post-sign verification failed: $($sig.Status)" }
-
-      - name: Compress Target Archive
+      # -----------------------------------------------------------------
+      # 5. PACKAGING & ARCHIVING
+      # -----------------------------------------------------------------
+      - name: Zip Self-Contained Portable Package
         shell: pwsh
         run: |
-          # This compression step is what turns the 23.7MB file into your ~6MB download package
-          Compress-Archive -Path ./publish/* -DestinationPath ./WinWidgetBattery.zip
+          # Compress the heavy 74MB output folder into a small ~25MB download archive
+          Compress-Archive -Path ./artifacts/self-contained/*.exe -DestinationPath ./artifacts/WinWidgetBattery-Portable.zip
 
       - name: Upload Workflow Artifact (30-day retention)
         uses: actions/upload-artifact@v4
         with:
-          name: WinWidgetBattery-CI-Build
-          path: WinWidgetBattery.zip
+          name: Production-Build-Packages
+          path: |
+            ./artifacts/WinWidgetBattery-Portable.zip
+            ./artifacts/lightweight-x64/WinWidgetBattery.exe
+            ./artifacts/ultra-lightweight/WinWidgetBattery-UltraLight.exe
           retention-days: 30
 
-      - name: Create GitHub Release and Attach Zip
+      # -----------------------------------------------------------------
+      # 6. CREATE GITHUB RELEASE
+      # -----------------------------------------------------------------
+      - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            ## WinWidgetBattery ${{ github.ref_name }}
+            ## Available Build Variants
             
-            Lightweight standalone Windows x64 single-file build.
-            
-            *Requires the .NET 10 Desktop Runtime installed on the host environment.*
+            * 📦 **WinWidgetBattery-Portable.zip**: Fully self-contained build. Zero dependencies required. Extract the executable and run anywhere.
+            * ⚙️ **WinWidgetBattery.exe**: Framework-dependent x64 standalone executable (~23 MB). Optimized for 64-bit Windows environments with native desktop runtimes pre-installed.
+            * 🪶 **WinWidgetBattery-UltraLight.exe**: Pure architecture-neutral binary (~6 MB). Requires that both the target machine has the **.NET 10 Desktop Runtime** installed and handles its own framework layout assemblies.
           draft: false
           prerelease: false
-          files: WinWidgetBattery.zip
-          
+          files: |
+            ./artifacts/WinWidgetBattery-Portable.zip
+            ./artifacts/lightweight-x64/WinWidgetBattery.exe
+            ./artifacts/ultra-lightweight/WinWidgetBattery-UltraLight.exe
