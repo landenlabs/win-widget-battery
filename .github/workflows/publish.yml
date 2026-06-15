@@ -30,16 +30,14 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore
 
-      - name: Publish (Aggressively Optimized Single-File)
+      - name: Publish (Optimized Single-File)
         shell: pwsh
         run: |
-          dotnet publish -c Release `
+          dotnet publish WinWidgetBattery.csproj -c Release `
             -r win-x64 `
             --self-contained true `
             /p:PublishSingleFile=true `
             /p:EnableCompressionInSingleFile=true `
-            /p:PublishTrimmed=true `
-            /p:TrimMode=full `
             /p:DebugType=none `
             /p:DebugSymbols=false `
             -o ./artifacts/win-x64
