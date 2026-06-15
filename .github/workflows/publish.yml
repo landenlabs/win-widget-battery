@@ -43,7 +43,7 @@ jobs:
             -o ./artifacts/self-contained
 
       # -----------------------------------------------------------------
-      # 2. FLAVOR 2: FRAMEWORK-DEPENDENT WINDOWS x64 VARIANT (~23MB)
+      # 2. FLAVOR 2 & 3: FRAMEWORK-DEPENDENT BASE WORKER (~23.7MB Uncompressed)
       # -----------------------------------------------------------------
       - name: Publish Framework-Dependent (x64)
         shell: pwsh
@@ -57,20 +57,7 @@ jobs:
             -o ./artifacts/lightweight-x64
 
       # -----------------------------------------------------------------
-      # 3. FLAVOR 3: PURE ULTRA-LIGHTWEIGHT ANYCPU VARIANT (~6MB)
-      # -----------------------------------------------------------------
-      - name: Publish Ultra-Lightweight (AnyCPU)
-        shell: pwsh
-        run: |
-          # Single-line execution with UseAppHost=false strips the native x64 wrapper bloat,
-          # successfully reducing this executable back to its true ~6MB baseline.
-          dotnet publish WinWidgetBattery.csproj -c Release --self-contained false /p:PublishSingleFile=true /p:UseAppHost=false /p:DebugType=none /p:DebugSymbols=false -o ./artifacts/ultra-lightweight
-          
-          # Rename this file slightly so it doesn't collide during asset upload
-          Rename-Item -Path ./artifacts/ultra-lightweight/WinWidgetBattery.exe -NewName "WinWidgetBattery-UltraLight.exe"
-
-      # -----------------------------------------------------------------
-      # 4. CODE SIGNING (Applies to all generated .exes if certificate exists)
+      # 3. CODE SIGNING (Applies to all generated .exes if certificate exists)
       # -----------------------------------------------------------------
       - name: Sign Executables
         if: ${{ env.CODE_SIGN_PFX_BASE64 != '' }}
@@ -100,26 +87,29 @@ jobs:
           }
 
       # -----------------------------------------------------------------
-      # 5. PACKAGING & ARCHIVING
+      # 4. PACKAGING & ARCHIVING (Creating the ~6MB and ~25MB zip files)
       # -----------------------------------------------------------------
-      - name: Zip Self-Contained Portable Package
+      - name: Package Archives
         shell: pwsh
         run: |
-          # Compress the heavy 74MB output folder into a small ~25MB download archive
+          # Flavor 1: Zip the heavy self-contained build folder (~25MB zipped download)
           Compress-Archive -Path ./artifacts/self-contained/*.exe -DestinationPath ./artifacts/WinWidgetBattery-Portable.zip
 
-      - name: Upload Workflow Artifact (30-day retention)
+          # Flavor 3: Zip the lightweight build folder (Yields your true original ~6MB zipped download package)
+          Compress-Archive -Path ./artifacts/lightweight-x64/*.exe -DestinationPath ./artifacts/WinWidgetBattery-Lightweight.zip
+
+      - name: Upload Workflow Artifacts (30-day retention)
         uses: actions/upload-artifact@v4
         with:
           name: Production-Build-Packages
           path: |
             ./artifacts/WinWidgetBattery-Portable.zip
             ./artifacts/lightweight-x64/WinWidgetBattery.exe
-            ./artifacts/ultra-lightweight/WinWidgetBattery-UltraLight.exe
+            ./artifacts/WinWidgetBattery-Lightweight.zip
           retention-days: 30
 
       # -----------------------------------------------------------------
-      # 6. CREATE GITHUB RELEASE
+      # 5. CREATE GITHUB RELEASE WITH ALL 3 FLAVORS
       # -----------------------------------------------------------------
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
@@ -129,12 +119,13 @@ jobs:
           body: |
             ## Available Build Variants
             
-            * 📦 **WinWidgetBattery-Portable.zip**: Fully self-contained build. Zero dependencies required. Extract the executable and run anywhere.
-            * ⚙️ **WinWidgetBattery.exe**: Framework-dependent x64 standalone executable (~23 MB). Optimized for 64-bit Windows environments with native desktop runtimes pre-installed.
-            * 🪶 **WinWidgetBattery-UltraLight.exe**: Pure architecture-neutral binary (~6 MB). Requires that both the target machine has the **.NET 10 Desktop Runtime** installed and handles its own framework layout assemblies.
+            * 📦 **WinWidgetBattery-Portable.zip** (~25 MB download / ~68 MB extracted): Fully self-contained. Zero dependencies required. Extract the executable and run anywhere.
+            * ⚙️ **WinWidgetBattery.exe** (~23.7 MB raw file): Framework-dependent x64 standalone executable. No extraction required, runs natively on machines with desktop runtimes.
+            * 🪶 **WinWidgetBattery-Lightweight.zip** (~6 MB download / ~23.7 MB extracted): Ultra-compact compression footprint package. Requires the **.NET 10 Desktop Runtime** to be installed on your machine.
           draft: false
           prerelease: false
           files: |
             ./artifacts/WinWidgetBattery-Portable.zip
             ./artifacts/lightweight-x64/WinWidgetBattery.exe
-            ./artifacts/ultra-lightweight/WinWidgetBattery-UltraLight.exe
+            ./artifacts/WinWidgetBattery-Lightweight.zip
+            
