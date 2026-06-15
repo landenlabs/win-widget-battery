@@ -1,4 +1,4 @@
-name: Build, Sign, and Publish Release
+name: Build, Sign, and Publish Dual Releases
 
 on:
   push:
@@ -30,72 +30,101 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore
 
-      - name: Publish (Optimized Single-File)
+      # -----------------------------------------------------------------
+      # 1. BUILD SELF-CONTAINED VARIANT (Zero-Dependency)
+      # -----------------------------------------------------------------
+      - name: Publish Self-Contained
         shell: pwsh
         run: |
           dotnet publish WinWidgetBattery.csproj -c Release `
             -r win-x64 `
             --self-contained true `
             /p:PublishSingleFile=true `
-            /p:EnableCompressionInSingleFile=true `
             /p:DebugType=none `
             /p:DebugSymbols=false `
-            -o ./artifacts/win-x64
+            -o ./artifacts/self-contained
 
-      - name: Sign Executable
+      # -----------------------------------------------------------------
+      # 2. BUILD FRAMEWORK-DEPENDENT VARIANT (Lightweight ~6MB)
+      # -----------------------------------------------------------------
+      - name: Publish Framework-Dependent
+        shell: pwsh
+        run: |
+          dotnet publish WinWidgetBattery.csproj -c Release `
+            -r win-x64 `
+            --self-contained false `
+            /p:PublishSingleFile=true `
+            /p:DebugType=none `
+            /p:DebugSymbols=false `
+            -o ./artifacts/lightweight
+
+      # -----------------------------------------------------------------
+      # 3. CODE SIGNING (Applies to both outputs if certificate exists)
+      # -----------------------------------------------------------------
+      - name: Sign Executables
         if: ${{ env.CODE_SIGN_PFX_BASE64 != '' }}
         shell: pwsh
         run: |
-          # Dynamically locate the published .exe regardless of project name
-          $exe = Get-ChildItem "./artifacts/win-x64/*.exe" | Select-Object -First 1 -ExpandProperty FullName
-          if (-not $exe) { throw "No published executable found to sign." }
-          Write-Host "Targeting executable for signing: $exe"
-
           # Locate signtool from the Windows SDK
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
             Sort-Object FullName -Descending | Select-Object -First 1
           if (-not $signtool) { throw "signtool.exe not found on the runner." }
 
-          # Decode PFX certificate
+          # Decode PFX certificate to a temporary file
           $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODE_SIGN_PFX_BASE64))
 
           try {
-            & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:CODE_SIGN_PASSWORD `
-              /tr $env:TIMESTAMP_URL /td SHA256 "$exe"
-            if ($LASTEXITCODE -ne 0) { throw "signtool sign failed (exit $LASTEXITCODE)." }
+            # Find and sign all generated .exe files across both build folders
+            Get-ChildItem "./artifacts/**/*.exe" | ForEach-Object {
+              Write-Host "Signing: $($_.FullName)"
+              & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:CODE_SIGN_PASSWORD `
+                /tr $env:TIMESTAMP_URL /td SHA256 "$($_.FullName)"
+              if ($LASTEXITCODE -ne 0) { throw "signtool sign failed on $($_.Name) (exit $LASTEXITCODE)." }
+              
+              # Verification
+              $sig = Get-AuthenticodeSignature "$($_.FullName)"
+              Write-Host "Signature status for $($_.Name): $($sig.Status)"
+              if ($sig.Status -ne 'Valid') { throw "Post-sign verification failed for $($_.Name): $($sig.Status)" }
+            }
           }
           finally {
             Remove-Item $pfx -Force -ErrorAction SilentlyContinue
           }
 
-          # Verification
-          $sig = Get-AuthenticodeSignature "$exe"
-          Write-Host "Signature status: $($sig.Status) | Signer: $($sig.SignerCertificate.Subject)"
-          if ($sig.Status -ne 'Valid') { throw "Post-sign verification failed: $($sig.Status)" }
-
-      - name: Zip Artifact for Backup
+      # -----------------------------------------------------------------
+      # 4. PACKAGING ARTIFACTS
+      # -----------------------------------------------------------------
+      - name: Zip Self-Contained Portable Package
         shell: pwsh
         run: |
-          Compress-Archive -Path ./artifacts/win-x64/* -DestinationPath ./artifacts/Release-Package.zip
+          # Package the heavy self-contained build into a compressed zip (~25MB download)
+          Compress-Archive -Path ./artifacts/self-contained/*.exe -DestinationPath ./artifacts/WinWidgetBattery-Portable.zip
 
       - name: Upload Workflow Artifact (30-day retention)
         uses: actions/upload-artifact@v4
         with:
-          name: Windows-Release-Target
-          path: ./artifacts/Release-Package.zip
+          name: Production-Build-Packages
+          path: |
+            ./artifacts/WinWidgetBattery-Portable.zip
+            ./artifacts/lightweight/WinWidgetBattery.exe
           retention-days: 30
 
-      - name: Create GitHub Release and Upload Binary
+      # -----------------------------------------------------------------
+      # 5. CREATE GITHUB RELEASE
+      # -----------------------------------------------------------------
+      - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            ## Automated Release ${{ github.ref_name }}
+            ## Distribution Options
             
-            Self-contained single-file binary optimized for Windows x64 architectures.
+            * 📦 **WinWidgetBattery-Portable.zip**: Fully self-contained. No .NET runtime required. Just extract the single executable and run. (Recommended for quick, zero-friction use).
+            * 🪶 **WinWidgetBattery.exe**: Ultra-lightweight standalone file (~6 MB). Requires the **.NET 10 Desktop Runtime** to be installed on your machine.
           draft: false
           prerelease: false
           files: |
-            ./artifacts/win-x64/*.exe
+            ./artifacts/WinWidgetBattery-Portable.zip
+            ./artifacts/lightweight/WinWidgetBattery.exe
