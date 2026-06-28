@@ -22,12 +22,15 @@ public partial class WidgetWindow : Window
     private double _bgOpacity = 0.80;
     private string _barBgColorHex = "#454570";
 
+    // Tracks whether this widget has called DeviceBatteryService.Start(),
+    // so we always pair every Start() with exactly one Stop().
+    private bool _deviceBatteryServiceStarted;
+
     private bool _isEmbedded;
     private bool _isDragging;
     private System.Windows.Point _dragOffset;
     private System.Windows.Point _mouseDownScreenPos;
-    private bool _mouseDownOnBatteryRow;
-    private DeviceBatteryInfo? _mouseDownOnDevice;
+    private bool _mouseDownOnBatteryIcon;
 
     public string WidgetId => _settings.Id;
 
@@ -52,6 +55,12 @@ public partial class WidgetWindow : Window
 
         InitializeUpdateTimer();
         InitializeDisplayCheckTimer();
+
+        // Start the device scan only when this widget is configured to show it.
+        _deviceBatteryServiceStarted = settings.ShowDeviceBatteries;
+        if (_deviceBatteryServiceStarted)
+            _deviceBatteryService.Start();
+
         UpdateBatteryDisplay();
     }
 
@@ -202,6 +211,15 @@ public partial class WidgetWindow : Window
             IdleCountdownText.Visibility = Visibility.Collapsed;
         // showIdleCountdown=true: UpdateBatteryDisplay manages visibility
 
+        // Keep the device-service ref count in sync with the toggle.
+        if (showDeviceBatteries && !_deviceBatteryServiceStarted) {
+            _deviceBatteryService.Start();
+            _deviceBatteryServiceStarted = true;
+        } else if (!showDeviceBatteries && _deviceBatteryServiceStarted) {
+            _deviceBatteryService.Stop();
+            _deviceBatteryServiceStarted = false;
+        }
+
         // Device batteries section: also gated on whether devices exist
         if (!showDeviceBatteries)
             DeviceBatteriesSection.Visibility = Visibility.Collapsed;
@@ -244,8 +262,7 @@ public partial class WidgetWindow : Window
         if (IsClickOnInteractiveElement(e.OriginalSource))
             return;
 
-        _mouseDownOnBatteryRow = IsOnBatteryRow(e.OriginalSource);
-        _mouseDownOnDevice = GetDeviceFromElement(e.OriginalSource);
+        _mouseDownOnBatteryIcon = IsOnBatteryIcon(e.OriginalSource);
 
         if (_isEmbedded)
         {
@@ -335,40 +352,21 @@ public partial class WidgetWindow : Window
         return false;
     }
 
-    private bool IsOnBatteryRow(object? source)
+    private bool IsOnBatteryIcon(object? source)
     {
         if (source is not DependencyObject element) return false;
         while (element != null)
         {
-            if (element == BatteryContentGrid || element == StatusSection) return true;
+            if (element == BatteryIconText) return true;
             element = VisualTreeHelper.GetParent(element);
         }
         return false;
     }
 
-    private DeviceBatteryInfo? GetDeviceFromElement(object? source)
-    {
-        if (source is not DependencyObject element) return null;
-        while (element != null)
-        {
-            if (element is FrameworkElement { DataContext: DeviceBatteryInfo device })
-                return device;
-            element = VisualTreeHelper.GetParent(element);
-        }
-        return null;
-    }
-
     private void OpenPanelForClickedElement()
     {
-        if (_mouseDownOnBatteryRow)
-            Process.Start(new ProcessStartInfo("ms-settings:battery") { UseShellExecute = true });
-        else if (_mouseDownOnDevice is { } device)
-        {
-            var uri = device.ConnectionType is DeviceConnectionType.BluetoothLE or DeviceConnectionType.BluetoothHid
-                ? "ms-settings:bluetooth"
-                : "ms-settings:connecteddevices";
-            Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
-        }
+        if (_mouseDownOnBatteryIcon)
+            Process.Start(new ProcessStartInfo("ms-settings:batterysaver ") { UseShellExecute = true });
     }
 
     // ── Settings / About ─────────────────────────────────────────────────────
@@ -423,7 +421,7 @@ public partial class WidgetWindow : Window
     }
 
     private void BatteryUsage_Click(object sender, RoutedEventArgs e)
-        => Process.Start(new ProcessStartInfo("ms-settings:batterysaver") { UseShellExecute = true });
+        => Process.Start(new ProcessStartInfo("ms-settings:batterysaver ") { UseShellExecute = true });
 
     private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
 
@@ -449,6 +447,14 @@ public partial class WidgetWindow : Window
     {
         _updateTimer?.Stop();
         _updateTimer = null;
+        _displayCheckTimer?.Stop();
+        _displayCheckTimer = null;
+
+        if (_deviceBatteryServiceStarted) {
+            _deviceBatteryService.Stop();
+            _deviceBatteryServiceStarted = false;
+        }
+
         base.OnClosed(e);
     }
 }

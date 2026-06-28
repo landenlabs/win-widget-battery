@@ -41,7 +41,7 @@ public partial class App : System.Windows.Application
         foreach (var widget in Settings.Widgets)
             CreateAndShowWidget(widget);
 
-        _ = _deviceBatteryService.StartAsync();
+        // DeviceBatteryService is started/stopped by each WidgetWindow via ref counting.
 
         _trayIcon = new TrayIconService(
             onAddWidget:      AddWidget,

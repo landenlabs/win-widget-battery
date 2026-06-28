@@ -174,6 +174,7 @@ public class DeviceBatteryService
     private List<DeviceBatteryInfo> _cache = [];
     private readonly Lock _lock = new();
     private CancellationTokenSource? _cts;
+    private int _refCount = 0;                          // reference count for Start/Stop
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -183,13 +184,31 @@ public class DeviceBatteryService
             return [.. _cache];
     }
 
-    public Task StartAsync()
+    /// <summary>
+    /// Increments the reference count. Starts the background scan loop on the
+    /// first call (0 → 1). Each Start() must be paired with a Stop().
+    /// </summary>
+    public void Start()
     {
-        _cts = new CancellationTokenSource();
-        return RunLoop(_cts.Token);
+        if (Interlocked.Increment(ref _refCount) == 1)
+        {
+            _cts = new CancellationTokenSource();
+            _ = RunLoop(_cts.Token);
+        }
     }
 
-    public void Stop() => _cts?.Cancel();
+    /// <summary>
+    /// Decrements the reference count. Cancels the background scan loop when
+    /// it reaches 0.
+    /// </summary>
+    public void Stop()
+    {
+        if (Interlocked.Decrement(ref _refCount) == 0)
+        {
+            _cts?.Cancel();
+            _cts = null;
+        }
+    }
 
     // ── Background loop ───────────────────────────────────────────────────────
 
