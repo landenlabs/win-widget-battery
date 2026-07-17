@@ -67,7 +67,7 @@
             BorderThickness="1"
             CornerRadius="10"
             Padding="10,7,10,7"
-            Cursor="Hand"
+            Cursor="SizeAll"
             MouseLeftButtonDown="Widget_MouseLeftButtonDown"
             MouseMove="Widget_MouseMove"
             MouseLeftButtonUp="Widget_MouseLeftButtonUp"
@@ -124,7 +124,8 @@
                     <TextBlock x:Name="BatteryIconText"
                                Text="🔋"
                                Foreground="#FFCDD6F4"
-                               FontSize="24"/>
+                               FontSize="24"
+                               Cursor="Hand"/>
                     <TextBlock x:Name="BatteryPercentText"
                                Text=" ---%"
                                Foreground="#FFCDD6F4"
