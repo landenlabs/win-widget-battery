@@ -137,6 +137,8 @@
                               IsChecked="{Binding AutoStartEnabled, Mode=TwoWay}"
                               Foreground="#FFA6ADC8"
                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding AutoStartHint}" Foreground="#FF6C7086" FontSize="10"
+                               VerticalAlignment="Center" Margin="8,0,0,0"/>
                 </StackPanel>
 
             </StackPanel>

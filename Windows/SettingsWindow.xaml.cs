@@ -97,6 +97,10 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         set { _autoStartEnabled = value; OnPropertyChanged(); }
     }
 
+    public string AutoStartHint => AutoStartService.IsPackaged
+        ? "Installed app: also listed in Task Manager › Startup apps"
+        : "";
+
     // ── Component visibility ─────────────────────────────────────────────────
 
     private bool _showTitle;
@@ -499,8 +503,11 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             _livePreviewTarget.Top  = _editPosY;
         }
 
-        AutoStartService.SetEnabled(_autoStartEnabled);
-        App.Settings.AutoStart = _autoStartEnabled;
+        var autoStartError = AutoStartService.SetEnabled(_autoStartEnabled);
+        App.Settings.AutoStart = AutoStartService.IsEnabled();
+        if (autoStartError != null)
+            System.Windows.MessageBox.Show(this, autoStartError, "WinWidgetBattery — Auto-start",
+                MessageBoxButton.OK, MessageBoxImage.Information);
 
         SettingsService.Save(App.Settings);
         DialogResult = true;
