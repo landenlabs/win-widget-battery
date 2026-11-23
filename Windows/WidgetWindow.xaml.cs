@@ -27,17 +27,45 @@ public partial class WidgetWindow : Window
     private bool _deviceBatteryServiceStarted;
 
     private bool _isEmbedded;
+
+    // Widget top-left in SCREEN PHYSICAL PIXELS — the single source of truth for position,
+    // whether embedded (child of WorkerW) or a normal top-level window. See WidgetGeometry.
+    private int _posX;
+    private int _posY;
+
+    // Drag (move) and corner-scale share the same start snapshot.
     private bool _isDragging;
-    private System.Windows.Point _dragOffset;
-    private System.Windows.Point _mouseDownScreenPos;
+    private bool _isResizing;
+    private ResizeZone _resizeZone;
+    private DesktopService.POINT _startCursor;
+    private int _startX, _startY;
+    private double _startW, _startH;      // DIPs
+    private int _startPixelW;
+    private int _startPercent;
     private bool _mouseDownOnBatteryIcon;
 
+    // The widget sizes to its content, so a corner drag scales the fonts instead of setting a size.
+    private const double MinScaleWidth = 60, MinScaleHeight = 30;
+    private const int MinFontScale = 50, MaxFontScale = 200;   // matches the Settings slider
+    private int _currentFontScale = 100;
+
+    private SettingsWindow? _settingsDialog;
+
     public string WidgetId => _settings.Id;
+
+    /// <summary>Current top-left in screen physical pixels.</summary>
+    public (int X, int Y) ScreenPosition => (_posX, _posY);
+
+    private double DpiX => VisualTreeHelper.GetDpi(this).DpiScaleX;
+    private double DpiY => VisualTreeHelper.GetDpi(this).DpiScaleY;
 
     public WidgetWindow(WidgetSettings settings, BatteryService batteryService,
         DeviceBatteryService deviceBatteryService, PowerInfoService powerInfoService)
     {
         InitializeComponent();
+
+        // Widgets can be added/removed from the tray at any time, so refresh this each time the menu opens.
+        ContextMenuOpening += (_, _) => RemoveMenuItem.IsEnabled = App.Settings.Widgets.Count > 1;
 
         _settings = settings;
         _batteryService = batteryService;
@@ -49,9 +77,10 @@ public partial class WidgetWindow : Window
         _barBgColorHex = string.IsNullOrEmpty(settings.BarBackgroundColor) ? "#454570" : settings.BarBackgroundColor;
 
         _currentDisplayConfiguration = DisplayService.GetCurrentDisplayConfiguration();
-        var (x, y) = DisplayService.GetDisplayPosition(settings, _currentDisplayConfiguration);
-        Left = x;
-        Top = y;
+        (_posX, _posY) = DisplayService.GetDisplayPosition(settings, _currentDisplayConfiguration);
+        // Provisional (assumes 100 %); corrected for the real DPI in OnSourceInitialized before first show.
+        Left = _posX;
+        Top = _posY;
 
         InitializeUpdateTimer();
         InitializeDisplayCheckTimer();
@@ -73,26 +102,101 @@ public partial class WidgetWindow : Window
         ApplyFontScale(_settings.FontScalePercent > 0 ? _settings.FontScalePercent : 100);
         ApplyVisibilitySettings();
 
-        if (_settings.EmbedInWallpaper)
+        DesktopService.HideFromAltTab(this);
+        _isEmbedded = _settings.EmbedInWallpaper && DesktopService.EmbedInWallpaper(this);
+        if (!_isEmbedded)
+            DesktopService.SetAlwaysOnBottom(this);
+
+        MoveTo(_posX, _posY);
+        EnsureOnScreen();
+    }
+
+    // ── Position (screen pixels) ─────────────────────────────────────────────
+
+    /// <summary>Moves the widget so its top-left is at the given screen pixel position (does not save).</summary>
+    public void MoveTo(int x, int y)
+    {
+        _posX = x;
+        _posY = y;
+        if (_isEmbedded)
         {
-            _isEmbedded = DesktopService.EmbedInWallpaper(this);
-            if (_isEmbedded)
-                DesktopService.MoveEmbeddedWindow(this, (int)Left, (int)Top);
-            else
-                DesktopService.SetAlwaysOnBottom(this);
+            // Pass the laid-out size so the child HWND also picks up content-size changes.
+            bool measured = ActualWidth > 0 && ActualHeight > 0;
+            DesktopService.MoveEmbeddedWindow(this, x, y,
+                measured ? PixelWidth : null, measured ? PixelHeight : null);
         }
         else
         {
-            DesktopService.SetAlwaysOnBottom(this);
+            Left = x / DpiX;
+            Top  = y / DpiY;
         }
     }
+
+    /// <summary>Persists the current position for the current monitor layout.</summary>
+    public void SavePosition()
+    {
+        DisplayService.SaveDisplayPosition(_settings, _currentDisplayConfiguration, _posX, _posY);
+        SettingsService.Save(App.Settings);
+    }
+
+    // Content-sized window: use the laid-out size, or the real window rect before first layout.
+    private int PixelWidth
+    {
+        get
+        {
+            if (ActualWidth > 0) return (int)Math.Round(ActualWidth * DpiX);
+            var r = DesktopService.GetWindowBounds(this);
+            return Math.Max(0, r.Right - r.Left);
+        }
+    }
+
+    private int PixelHeight
+    {
+        get
+        {
+            if (ActualHeight > 0) return (int)Math.Round(ActualHeight * DpiY);
+            var r = DesktopService.GetWindowBounds(this);
+            return Math.Max(0, r.Bottom - r.Top);
+        }
+    }
+
+    private PxRect PixelBounds => new(_posX, _posY, PixelWidth, PixelHeight);
+
+    /// <summary>Embedded (child) windows need an explicit MoveWindow to pick up a new content size.</summary>
+    private void RefreshEmbeddedSize()
+    {
+        if (!_isEmbedded) return;
+        UpdateLayout();
+        MoveTo(_posX, _posY);
+    }
+
+    /// <summary>Pulls the widget back onto a screen if it's off every monitor (e.g. after unplugging one).</summary>
+    private void EnsureOnScreen()
+    {
+        var fix = WidgetGeometry.EnsureVisible(PixelBounds, DisplayService.GetScreens());
+        if (fix is not { } p) return;
+        MoveTo(p.X, p.Y);
+        SavePosition();
+    }
+
+    // ── Timers ────────────────────────────────────────────────────────────────
+
+    /// <summary>Minimum battery refresh period; battery status changes slowly and polling faster just burns power.</summary>
+    public const int MinUpdateIntervalMs = 1000;
 
     private void InitializeUpdateTimer()
     {
         _updateTimer = new System.Windows.Threading.DispatcherTimer();
-        _updateTimer.Interval = TimeSpan.FromMilliseconds(_settings.UpdateInterval);
+        _updateTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(MinUpdateIntervalMs, _settings.UpdateInterval));
         _updateTimer.Tick += (s, e) => UpdateBatteryDisplay();
         _updateTimer.Start();
+    }
+
+    /// <summary>Applies a new refresh period without a restart (clamped to <see cref="MinUpdateIntervalMs"/>).</summary>
+    private void ApplyUpdateInterval(int ms)
+    {
+        if (_updateTimer != null)
+            _updateTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(MinUpdateIntervalMs, ms));
     }
 
     private void InitializeDisplayCheckTimer()
@@ -105,19 +209,15 @@ public partial class WidgetWindow : Window
 
     private void CheckDisplayConfigurationChanged()
     {
+        if (_isDragging || _isResizing) return;
+
         var newConfig = DisplayService.GetCurrentDisplayConfiguration();
-        if (newConfig.ConfigurationHash != _currentDisplayConfiguration.ConfigurationHash)
-        {
-            _currentDisplayConfiguration = newConfig;
-            var (x, y) = DisplayService.GetDisplayPosition(_settings, _currentDisplayConfiguration);
-            if (_isEmbedded)
-                DesktopService.MoveEmbeddedWindow(this, x, y);
-            else
-            {
-                Left = x;
-                Top = y;
-            }
-        }
+        if (newConfig.ConfigurationHash == _currentDisplayConfiguration.ConfigurationHash) return;
+
+        _currentDisplayConfiguration = newConfig;
+        var (x, y) = DisplayService.GetDisplayPosition(_settings, _currentDisplayConfiguration);
+        MoveTo(x, y);
+        EnsureOnScreen();
     }
 
     private void UpdateBatteryDisplay()
@@ -184,6 +284,13 @@ public partial class WidgetWindow : Window
 
     public void ApplyFontScale(int percent)
     {
+        SetFontSizes(percent);
+        RefreshEmbeddedSize();
+    }
+
+    private void SetFontSizes(int percent)
+    {
+        _currentFontScale = percent;
         double factor = Math.Max(0.25, percent / 100.0);
         BatteryIconText.FontSize = Math.Max(8, 24 * factor);
         BatteryPercentText.FontSize = Math.Max(8, 24 * factor);
@@ -224,6 +331,8 @@ public partial class WidgetWindow : Window
         if (!showDeviceBatteries)
             DeviceBatteriesSection.Visibility = Visibility.Collapsed;
         // showDeviceBatteries=true: UpdateBatteryDisplay manages based on device count
+
+        RefreshEmbeddedSize();
     }
 
     private void ApplyVisibilitySettings() =>
@@ -262,78 +371,162 @@ public partial class WidgetWindow : Window
         if (IsClickOnInteractiveElement(e.OriginalSource))
             return;
 
+        var zone = GetResizeZone(e.GetPosition(WidgetBorder));
+        if (zone != ResizeZone.None)
+        {
+            _mouseDownOnBatteryIcon = false;
+            StartResize(zone);
+            e.Handled = true;
+            return;
+        }
+
         _mouseDownOnBatteryIcon = IsOnBatteryIcon(e.OriginalSource);
 
-        if (_isEmbedded)
-        {
-            var cursor = DesktopService.GetCursorPosition();
-            _mouseDownScreenPos = new System.Windows.Point(cursor.X, cursor.Y);
-            var bounds = DesktopService.GetWindowBounds(this);
-            _dragOffset = new System.Windows.Point(cursor.X - bounds.Left, cursor.Y - bounds.Top);
-        }
-        else
-        {
-            var cursor = DesktopService.GetCursorPosition();
-            _mouseDownScreenPos = new System.Windows.Point(cursor.X, cursor.Y);
-            // DragMove() fails on Windows 10 with AllowsTransparency=True + WindowStyle=None
-            _dragOffset = e.GetPosition(this);
-        }
+        // Manual drag (DragMove() fails on Windows 10 with AllowsTransparency=True + WindowStyle=None,
+        // and doesn't work at all for a window embedded in WorkerW). Everything is in screen pixels.
+        SnapshotStart();
         _isDragging = true;
+        SetCapturedCursor(System.Windows.Input.Cursors.SizeAll);
         WidgetBorder.CaptureMouse();
         e.Handled = true;
     }
 
+    private void SnapshotStart()
+    {
+        _startCursor = DesktopService.GetCursorPosition();
+        _startX = _posX;
+        _startY = _posY;
+        _startW = ActualWidth;
+        _startH = ActualHeight;
+        _startPixelW = PixelWidth;
+        _startPercent = _currentFontScale;
+    }
+
     private void Widget_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (!_isDragging) return;
-        var cursor = DesktopService.GetCursorPosition();
-        if (_isEmbedded)
+        if (_isDragging)
         {
-            int newX = cursor.X - (int)_dragOffset.X;
-            int newY = cursor.Y - (int)_dragOffset.Y;
-            DesktopService.MoveEmbeddedWindow(this, newX, newY);
+            var c = DesktopService.GetCursorPosition();
+            var (x, y) = WidgetGeometry.DragTo(_startX, _startY, _startCursor.X, _startCursor.Y, c.X, c.Y);
+            MoveTo(x, y);
+            return;
         }
-        else
+
+        if (_isResizing)
         {
-            var source = PresentationSource.FromVisual(this);
-            if (source != null)
-            {
-                var scale = source.CompositionTarget.TransformFromDevice;
-                Left = cursor.X * scale.M11 - _dragOffset.X;
-                Top  = cursor.Y * scale.M22 - _dragOffset.Y;
-            }
+            UpdateResize();
+            return;
         }
+
+        UpdateHoverCursor(GetResizeZone(e.GetPosition(WidgetBorder)));
+    }
+
+    /// <summary>
+    /// The border's XAML cursor is the move cursor (the battery icon overrides it with a hand).
+    /// In a resize corner the border forces its resize cursor over any child cursor.
+    /// </summary>
+    private void UpdateHoverCursor(ResizeZone zone)
+    {
+        bool inCorner = zone != ResizeZone.None;
+        WidgetBorder.Cursor = inCorner ? CursorFor(zone) : System.Windows.Input.Cursors.SizeAll;
+        WidgetBorder.ForceCursor = inCorner;
+    }
+
+    /// <summary>
+    /// While the border has mouse capture (drag/resize), it's the element queried for the
+    /// cursor, so pin the appropriate cursor for the duration of the operation.
+    /// </summary>
+    private void SetCapturedCursor(System.Windows.Input.Cursor cursor)
+    {
+        WidgetBorder.Cursor = cursor;
+        WidgetBorder.ForceCursor = true;
     }
 
     private void Widget_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (!_isDragging) return;
-        _isDragging = false;
-        WidgetBorder.ReleaseMouseCapture();
+        if (!_isDragging && !_isResizing) return;
 
-        var cursor = DesktopService.GetCursorPosition();
-        bool wasClick = Math.Abs(cursor.X - _mouseDownScreenPos.X) <= 5 &&
-                        Math.Abs(cursor.Y - _mouseDownScreenPos.Y) <= 5;
+        var c = DesktopService.GetCursorPosition();
+        bool wasClick = _isDragging &&
+                        Math.Abs(c.X - _startCursor.X) <= 5 &&
+                        Math.Abs(c.Y - _startCursor.Y) <= 5;
 
-        if (_isEmbedded)
-        {
-            var bounds = DesktopService.GetWindowBounds(this);
-            DisplayService.SaveDisplayPosition(_settings, _currentDisplayConfiguration, bounds.Left, bounds.Top);
-            SettingsService.Save(App.Settings);
-        }
-        else
-        {
-            SaveCurrentPosition();
-        }
+        EndDragOrResize();
+        UpdateHoverCursor(GetResizeZone(e.GetPosition(WidgetBorder)));
+        e.Handled = true;
 
         if (wasClick)
             OpenPanelForClickedElement();
     }
 
-    private void SaveCurrentPosition()
+    /// <summary>Capture can be lost mid-drag (Alt-Tab, Win key, UAC prompt); finish cleanly instead of sticking.</summary>
+    private void Widget_LostMouseCapture(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        DisplayService.SaveDisplayPosition(_settings, _currentDisplayConfiguration, (int)Left, (int)Top);
-        SettingsService.Save(App.Settings);
+        if (_isDragging || _isResizing)
+            EndDragOrResize();
+    }
+
+    private void EndDragOrResize()
+    {
+        bool wasResizing = _isResizing;
+        _isDragging = false;
+        _isResizing = false;
+        _resizeZone = ResizeZone.None;
+        if (WidgetBorder.IsMouseCaptured)
+            WidgetBorder.ReleaseMouseCapture();
+        UpdateHoverCursor(ResizeZone.None);
+
+        if (wasResizing)
+            _settings.FontScalePercent = _currentFontScale;
+        EnsureOnScreen();
+        SavePosition();
+    }
+
+    // ── Corner scaling ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Bottom corners scale the content; the top corners are always part of the drag zone
+    /// (the widget is content-sized, so there is no top-edge resize to offer).
+    /// </summary>
+    private ResizeZone GetResizeZone(System.Windows.Point pos) =>
+        WidgetGeometry.HitTest(pos.X, pos.Y, WidgetBorder.ActualWidth, WidgetBorder.ActualHeight,
+                               allowTopCorners: false);
+
+    private static System.Windows.Input.Cursor CursorFor(ResizeZone zone) => zone switch
+    {
+        ResizeZone.TopLeft or ResizeZone.BottomRight => System.Windows.Input.Cursors.SizeNWSE,
+        ResizeZone.TopRight or ResizeZone.BottomLeft => System.Windows.Input.Cursors.SizeNESW,
+        _ => System.Windows.Input.Cursors.SizeAll
+    };
+
+    private void StartResize(ResizeZone zone)
+    {
+        SnapshotStart();
+        _isResizing = true;
+        _resizeZone = zone;
+        SetCapturedCursor(CursorFor(zone));
+        WidgetBorder.CaptureMouse();
+    }
+
+    /// <summary>
+    /// Translates the corner drag into a font-scale change: the size the drag *would* give
+    /// (WidgetGeometry.Resize) is converted to a proportional scale percent. Bottom-left keeps
+    /// the right edge fixed; bottom-right keeps the top-left fixed.
+    /// </summary>
+    private void UpdateResize()
+    {
+        var c = DesktopService.GetCursorPosition();
+        var r = WidgetGeometry.Resize(_resizeZone, _startW, _startH, _startX, _startY,
+                                      c.X - _startCursor.X, c.Y - _startCursor.Y,
+                                      DpiX, DpiY, MinScaleWidth, MinScaleHeight);
+        int percent = WidgetGeometry.ScalePercentFromResize(_startPercent, _startW, _startH, r.Width, r.Height,
+                                                            MinFontScale, MaxFontScale);
+        if (percent == _currentFontScale) return;
+
+        SetFontSizes(percent);
+        UpdateLayout();
+        int x = WidgetGeometry.IsWest(_resizeZone) ? _startX + (_startPixelW - PixelWidth) : _startX;
+        MoveTo(x, _startY);
     }
 
     private bool IsClickOnInteractiveElement(object? source)
@@ -366,15 +559,32 @@ public partial class WidgetWindow : Window
     private void OpenPanelForClickedElement()
     {
         if (_mouseDownOnBatteryIcon)
-            Process.Start(new ProcessStartInfo("ms-settings:batterysaver ") { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo("ms-settings:batterysaver") { UseShellExecute = true });
     }
 
     // ── Settings / About ─────────────────────────────────────────────────────
 
     public void OpenSettings()
     {
-        var dlg = new SettingsWindow(_settings, livePreviewTarget: this);
-        if (dlg.ShowDialog() == true)
+        // Tray double-click / tray menu / widget menu can all request this while it's already open.
+        if (_settingsDialog != null)
+        {
+            _settingsDialog.Activate();
+            return;
+        }
+
+        bool ok;
+        try
+        {
+            _settingsDialog = new SettingsWindow(_settings, livePreviewTarget: this);
+            ok = _settingsDialog.ShowDialog() == true;
+        }
+        finally
+        {
+            _settingsDialog = null;
+        }
+
+        if (ok)
         {
             _bgColorHex = _settings.BackgroundColor;
             _bgOpacity = _settings.BackgroundOpacity;
@@ -383,6 +593,7 @@ public partial class WidgetWindow : Window
             ApplyBarBackgroundInternal();
             ApplyFontScale(_settings.FontScalePercent);
             ApplyVisibilitySettings();
+            ApplyUpdateInterval(_settings.UpdateInterval);
             UpdateBatteryDisplay();
         }
         else
@@ -421,15 +632,23 @@ public partial class WidgetWindow : Window
     }
 
     private void BatteryUsage_Click(object sender, RoutedEventArgs e)
-        => Process.Start(new ProcessStartInfo("ms-settings:batterysaver ") { UseShellExecute = true });
+        => Process.Start(new ProcessStartInfo("ms-settings:batterysaver") { UseShellExecute = true });
 
     private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
 
     private void About_Click(object sender, RoutedEventArgs e)
-        => new AboutWindow() { Owner = this }.ShowDialog();
+        => ((App)System.Windows.Application.Current).OpenAbout(this);
 
     private void Remove_Click(object sender, RoutedEventArgs e)
     {
+        if (App.Settings.Widgets.Count <= 1)
+        {
+            System.Windows.MessageBox.Show(
+                "This is the only widget. Use Exit to close the app instead.",
+                "Remove Widget", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         var result = System.Windows.MessageBox.Show(
             "Remove this widget?",
             "Confirm Remove",

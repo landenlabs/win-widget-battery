@@ -164,8 +164,9 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private readonly string _origBgColor;
     private readonly string _origBarBgColor;
     private readonly int _origBgOpacityPercent;
-    private readonly double _origPosX;
-    private readonly double _origPosY;
+    private readonly int _origPosX;   // screen pixels
+    private readonly int _origPosY;
+    private bool _committed;          // set by OK; anything else that closes the window reverts the preview
 
     // ── Position picker ──────────────────────────────────────────────────────
 
@@ -174,14 +175,12 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private double _mapTop;
     private double _mapOffsetX;
     private double _mapOffsetY;
-    private double _dpiScaleX = 1.0;
-    private double _dpiScaleY = 1.0;
     private System.Windows.Controls.Border? _widgetMarker;
     private bool _markerDragging;
     private System.Windows.Point _markerDragStart;
     private double _markerDragOrigLeft;
     private double _markerDragOrigTop;
-    private double _editPosX;
+    private double _editPosX;   // screen pixels
     private double _editPosY;
 
     public string WidgetPositionText => $"X: {(int)_editPosX}  Y: {(int)_editPosY}";
@@ -205,14 +204,16 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
         InitializeComponent();
         Topmost = true;
+        // Window sizes to its content; cap it to the work area so it can't run off a small screen
+        // (the content then scrolls).
+        MaxHeight = Math.Max(MinHeight, SystemParameters.WorkArea.Height);
 
         // Snapshot originals so Cancel can restore the live preview
         _origBgColor          = string.IsNullOrEmpty(widget.BackgroundColor) ? "#1E1E2E" : widget.BackgroundColor;
         _origBarBgColor       = string.IsNullOrEmpty(widget.BarBackgroundColor) ? "#454570" : widget.BarBackgroundColor;
         _origBgOpacityPercent = (int)Math.Round(widget.BackgroundOpacity * 100);
         if (_origBgOpacityPercent == 0) _origBgOpacityPercent = 80;
-        _origPosX = livePreviewTarget?.Left ?? widget.X;
-        _origPosY = livePreviewTarget?.Top  ?? widget.Y;
+        (_origPosX, _origPosY) = livePreviewTarget?.ScreenPosition ?? (widget.X, widget.Y);
         _editPosX = _origPosX;
         _editPosY = _origPosY;
         _origUpdateInterval   = widget.UpdateInterval;
@@ -364,10 +365,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _mapLeft = (cW - vdW * _mapScale) / 2.0;
         _mapTop  = (cH - vdH * _mapScale) / 2.0;
 
-        var source = PresentationSource.FromVisual(this);
-        _dpiScaleX = source?.CompositionTarget.TransformToDevice.M11 ?? 1.0;
-        _dpiScaleY = source?.CompositionTarget.TransformToDevice.M22 ?? 1.0;
-
         ScreenMapCanvas.Children.Clear();
 
         foreach (var screen in screens)
@@ -402,13 +399,15 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             ScreenMapCanvas.Children.Add(lbl);
         }
 
-        double widgetWpx = (_livePreviewTarget?.ActualWidth  ?? 160) * _dpiScaleX;
-        double widgetHpx = (_livePreviewTarget?.ActualHeight ?? 80)  * _dpiScaleY;
+        // Everything on the map is in screen pixels; the widget's size is DIPs at the widget's own DPI.
+        var widgetDpi    = _livePreviewTarget != null ? VisualTreeHelper.GetDpi(_livePreviewTarget) : VisualTreeHelper.GetDpi(this);
+        double widgetWpx = (_livePreviewTarget?.ActualWidth  ?? 160) * widgetDpi.DpiScaleX;
+        double widgetHpx = (_livePreviewTarget?.ActualHeight ?? 80)  * widgetDpi.DpiScaleY;
         double markerW   = Math.Max(widgetWpx * _mapScale, 14);
         double markerH   = Math.Max(widgetHpx * _mapScale, 8);
 
-        double markerLeft = _mapLeft + (_editPosX * _dpiScaleX - minX) * _mapScale;
-        double markerTop  = _mapTop  + (_editPosY * _dpiScaleY - minY) * _mapScale;
+        double markerLeft = _mapLeft + (_editPosX - minX) * _mapScale;
+        double markerTop  = _mapTop  + (_editPosY - minY) * _mapScale;
 
         _widgetMarker = new System.Windows.Controls.Border
         {
@@ -454,17 +453,12 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         System.Windows.Controls.Canvas.SetLeft(_widgetMarker, newL);
         System.Windows.Controls.Canvas.SetTop(_widgetMarker, newT);
 
-        _editPosX = ((newL - _mapLeft) / _mapScale + _mapOffsetX) / _dpiScaleX;
-        _editPosY = ((newT - _mapTop)  / _mapScale + _mapOffsetY) / _dpiScaleY;
+        _editPosX = (newL - _mapLeft) / _mapScale + _mapOffsetX;
+        _editPosY = (newT - _mapTop)  / _mapScale + _mapOffsetY;
 
         OnPropertyChanged(nameof(WidgetPositionText));
 
-        if (_livePreviewTarget != null)
-        {
-            _livePreviewTarget.Left = _editPosX;
-            _livePreviewTarget.Top  = _editPosY;
-        }
-
+        _livePreviewTarget?.MoveTo((int)Math.Round(_editPosX), (int)Math.Round(_editPosY));
         e.Handled = true;
     }
 
@@ -480,7 +474,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
     private void OK_Click(object sender, RoutedEventArgs e)
     {
-        _widget.UpdateInterval      = _updateInterval;
+        _widget.UpdateInterval      = Math.Max(WidgetWindow.MinUpdateIntervalMs, _updateInterval);
         _widget.BackgroundColor     = _bgColorHex;
         _widget.BarBackgroundColor  = _barBgColorHex;
         _widget.BackgroundOpacity   = _bgOpacityPercent / 100.0;
@@ -495,13 +489,10 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         _widget.ShowIdleCountdown    = _showIdleCountdown;
         _widget.ShowDeviceBatteries  = _showDeviceBatteries;
 
+        int posX = (int)Math.Round(_editPosX), posY = (int)Math.Round(_editPosY);
         var config = DisplayService.GetCurrentDisplayConfiguration();
-        DisplayService.SaveDisplayPosition(_widget, config, (int)_editPosX, (int)_editPosY);
-        if (_livePreviewTarget != null)
-        {
-            _livePreviewTarget.Left = _editPosX;
-            _livePreviewTarget.Top  = _editPosY;
-        }
+        DisplayService.SaveDisplayPosition(_widget, config, posX, posY);
+        _livePreviewTarget?.MoveTo(posX, posY);
 
         var autoStartError = AutoStartService.SetEnabled(_autoStartEnabled);
         App.Settings.AutoStart = AutoStartService.IsEnabled();
@@ -510,11 +501,27 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
                 MessageBoxButton.OK, MessageBoxImage.Information);
 
         SettingsService.Save(App.Settings);
+        _committed = true;
         DialogResult = true;
         Close();
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        DialogResult = false;   // OnClosing does the revert
+        Close();
+    }
+
+    /// <summary>Esc, Cancel and the title-bar X all close without OK — every one of them must undo the live preview.</summary>
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        base.OnClosing(e);
+        if (!e.Cancel && !_committed)
+            RevertPreview();
+    }
+
+    /// <summary>Restores everything the live preview touched: colors, opacity, font scale, visibility and position.</summary>
+    private void RevertPreview()
     {
         _livePreviewTarget?.ApplyBackground(_origBgColor, _origBgOpacityPercent / 100.0);
         _livePreviewTarget?.ApplyBarBackground(_origBarBgColor);
@@ -523,13 +530,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             _origShowTitle, _origShowBatteryIcon, _origShowPercentage,
             _origShowColorBar, _origShowStatusText, _origShowTimeRemaining,
             _origShowIdleCountdown, _origShowDeviceBatteries);
-        if (_livePreviewTarget != null)
-        {
-            _livePreviewTarget.Left = _origPosX;
-            _livePreviewTarget.Top  = _origPosY;
-        }
-        DialogResult = false;
-        Close();
+        _livePreviewTarget?.MoveTo(_origPosX, _origPosY);
     }
 
     // ── INotifyPropertyChanged ───────────────────────────────────────────────

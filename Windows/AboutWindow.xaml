@@ -59,6 +59,11 @@
                                      RequestNavigate="Hyperlink_RequestNavigate"
                                      Foreground="#FF89B4FA">https://github.com/landenlabs/win-widget-battery.git</Hyperlink>
                     </TextBlock>
+                    <TextBlock Foreground="#FFBAC2DE" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap">
+                        <Run>Privacy:&#x2003;&#x2003;&#x2002;</Run><Hyperlink NavigateUri="https://landenlabs.github.io/win-widget-battery/privacy.html"
+                                     RequestNavigate="Hyperlink_RequestNavigate"
+                                     Foreground="#FF89B4FA">Privacy policy</Hyperlink>
+                    </TextBlock>
                     <TextBlock Margin="0,12,0,0" Foreground="#FF6C7086" FontSize="11">
                         Battery status powered by Windows API (GetSystemPowerStatus).
                     </TextBlock>
@@ -74,7 +79,7 @@
                     </TextBlock>
                     <TextBlock Foreground="#FFA6ADC8" FontSize="11" Margin="0,3,0,0">
                         <Run FontWeight="SemiBold" Foreground="#FF89B4FA">Drag</Run>
-                        <Run> the widget to reposition it on the desktop.</Run>
+                        <Run> the widget to reposition it; drag a bottom corner to resize.</Run>
                     </TextBlock>
                     <TextBlock Foreground="#FFA6ADC8" FontSize="11" Margin="0,3,0,0">
                         <Run FontWeight="SemiBold" Foreground="#FF89B4FA">Right-click</Run>
@@ -141,10 +146,17 @@
                     </TextBlock>
                 </StackPanel>
 
+                <Rectangle Height="1" Fill="#FF313244" Margin="0,12,0,0"/>
+
+                <!-- Copyright banner -->
+                <TextBlock Margin="0,12,0,0" Foreground="#FF6C7086" FontSize="11" TextWrapping="Wrap">
+                    Copyright © 2026 LanDen Labs — Dennis Lang. Licensed under Apache 2.0.
+                </TextBlock>
+
             </StackPanel>
         </ScrollViewer>
 
         <Button Grid.Row="4" Content="Close" Style="{StaticResource AccentButton}"
-                HorizontalAlignment="Right" Click="Close_Click"/>
+                HorizontalAlignment="Right" IsCancel="True" IsDefault="True" Click="Close_Click"/>
     </Grid>
 </Window>

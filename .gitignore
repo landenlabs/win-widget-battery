@@ -432,3 +432,4 @@ FodyWeavers.xsd
 # MSIX packaging output
 msix-layout/
 dist/
+dist-store/

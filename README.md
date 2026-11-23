@@ -2,7 +2,7 @@
 <table border="0">
   <tr>
     <td>
-      17-May-2026<br>
+      23-Nov-2026<br>
       Windows<br>
       <a href="https://landenlabs.com/index.html">Home</a>
     </td>
@@ -50,6 +50,8 @@ A lightweight Windows desktop widget that displays real-time battery status as a
 - **Real-time battery monitoring** — percentage, charging state, and estimated time remaining
 - **Color-coded status bar** — green (charging or ≥50%), yellow (20–49%), red (<20%)
 - **Device batteries** — shows Bluetooth and connected device battery levels
+- **Sleep countdown** — optional "Sleep in …" line showing how long until the PC sleeps or hibernates from inactivity
+- **Resizable** — drag a bottom corner to scale the widget (text and bar scale together)
 - **Transparent overlay** — sits directly on the desktop wallpaper, no taskbar clutter
 - **Drag to reposition** — click and drag the widget anywhere on the desktop *(Windows 11)*
 - **Screen-map position picker** — drag a scaled widget marker across a miniature monitor map inside Settings to reposition the widget *(Windows 10 & 11 — see [Windows 10 notes](#windows-10-notes))*
@@ -116,7 +118,8 @@ See **[how-to-install.md](how-to-install.md)** for full details — every instal
    It picks the `.msix` matching your CPU, trusts its self-signed certificate (one UAC prompt), installs, and launches the app. It shows up in the Start menu as **WinWidgetBattery**.
 
 > Windows only installs an MSIX whose signing certificate is trusted, so the self-signed certificate must be added to **Local Machine → Trusted People** first — the script does this for you.
-> To remove the app and the certificate later: `powershell -ExecutionPolicy Bypass -File .\uninstall-msix.ps1`
+> To remove the app and the certificate later: `powershell -ExecutionPolicy Bypass -File .\uninstall-msix.ps1`  
+> The certificate is shared by all LanDen Labs widgets, so it is kept while any of them is still installed (add `-Force` to remove it anyway).
 
 ### Option B — Portable release zip
 
@@ -143,10 +146,11 @@ build.bat C:\opt\bin
 | Action | Result |
 |--------|--------|
 | **Hover** | Reveals ⚙ Settings and ? About buttons |
-| **Click battery row** | Opens Windows battery settings |
-| **Click device row** | Opens Windows Bluetooth / connected devices settings |
+| **Click battery icon** | Opens Windows battery settings |
 | **Drag** | Repositions the widget *(Windows 11 only — use Settings on Windows 10)* |
-| **Right-click** | Opens context menu (Settings / About / Add / Remove / Exit) |
+| **Drag a bottom corner** | Resizes (scales) the widget; the top corners also resize when the title is hidden |
+| **Right-click** | Opens context menu (Usage / Settings / About / Remove Widget / Exit) |
+| **Tray icon** | Per-widget Settings, + Add Widget, About, Exit |
 
 ---
 
@@ -178,6 +182,7 @@ Each component can be toggled on or off independently:
 | Color Bar | Horizontal fill bar |
 | Status Text | Charging / Discharging / Low Battery / Critical Battery |
 | Time Remaining | Estimated time left on battery |
+| Sleep Countdown | Time until the PC sleeps or hibernates from inactivity (off by default) |
 | Device Batteries | Bluetooth / connected device battery levels |
 
 ### Widget Position
@@ -217,7 +222,17 @@ This produces a **single `WinWidgetBattery.exe`** (all managed assemblies bundle
 build.bat <dest-dir>
 ```
 
-Kills any running instance, publishes a self-contained, compressed single-file exe (the same build as the release zip), copies it to `<dest-dir>\winwidgets\`, and writes a `<dest-dir>\WinWidgetBattery.bat` launcher. `<dest-dir>` defaults to the `BINDIR` environment variable.
+Kills any running instance, runs the unit tests, publishes a self-contained, compressed single-file exe (the same build as the release zip), copies it to `<dest-dir>\winwidgets\`, and writes a `<dest-dir>\WinWidgetBattery.bat` launcher. `<dest-dir>` defaults to the `BINDIR` environment variable.
+
+### Unit tests
+
+```cmd
+dotnet run --project tests\WinWidgetBattery.Tests
+```
+
+The tests use xUnit v3 and run in-process. `dotnet test` also works (and Visual Studio's Test Explorer), but on machines whose security software inspects localhost traffic it can stall for 90 s with "Failed to negotiate protocol".
+
+Covers the window geometry that has regressed before: resize-corner hit testing (top corners become the drag zone when the title is shown), drag, corner resize (anchoring, min/max, DPI scaling, proportional scaling of the content-sized widget), pulling a widget back from an unplugged monitor, and the stable monitor-layout key used to save positions. The math lives in `Services/WidgetGeometry.cs` (no WPF dependencies) so it can be tested directly; the release workflow and `build.bat` both run these tests and stop on failure.
 
 ### Build the MSIX locally
 
@@ -225,11 +240,15 @@ Kills any running instance, publishes a self-contained, compressed single-file e
 powershell -ExecutionPolicy Bypass -File .github\scripts\build-msix.ps1 -Arch x64 -Version 6.11.20 -PfxPath cert.pfx -PfxPassword secret
 ```
 
-The certificate subject must equal the package Publisher (default `CN=LanDen Labs`). The package is written to `dist\`. Requires the Windows 10/11 SDK (`makeappx.exe`, `signtool.exe`).
+The certificate subject must equal the package Publisher (default `CN=LanDen Labs`). The package is written to `dist\`. Requires the Windows 10/11 SDK (`makeappx.exe`, `signtool.exe`). Add `-Store` (and drop `-PfxPath`) to build an unsigned Store package instead; see below.
 
-### Releases
+### Releases and the Microsoft Store
 
-Pushing a `v*` tag runs [.github/workflows/build.yml](.github/workflows/build.yml). It publishes the portable zip and signed x64 + ARM64 MSIX packages, and attaches them to a GitHub release together with `install-msix.ps1`, `uninstall-msix.ps1` and (for self-signed builds) `WinWidgetBattery.cer`. If the repo secrets `MSIX_CERT_BASE64` (base64 `.pfx`) and `MSIX_CERT_PASSWORD` are set, that certificate signs the packages; otherwise a self-signed `CN=LanDen Labs` certificate is generated for the build.
+Pushing a `v*` tag runs [.github/workflows/build.yml](.github/workflows/build.yml). It runs the unit tests, then attaches the portable zip, the signed MSIX packages (x64, arm64), `install-msix.ps1`, `uninstall-msix.ps1` and (for self-signed builds) `WinWidgetBattery.cer` to a GitHub release. If the repo secrets `MSIX_CERT_BASE64` (base64 `.pfx`) and `MSIX_CERT_PASSWORD` are set, that certificate signs the packages; otherwise a self-signed `CN=LanDen Labs` certificate is generated for the build.
+
+The same run also builds **unsigned** Store packages, `WinWidgetBattery-<ver>-<arch>-store.msix`, and puts them in the build artifact only. Upload them in Partner Center, which signs and hosts them. Their identity comes from the repo Actions variables `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_DISPLAY_NAME`, which must match Partner Center > Product identity. If the variables aren't set, the step is skipped. Listing text, URLs and the Store logo are in [store-assets/](store-assets/store-listing.md).
+
+The project site and privacy policy are served by GitHub Pages from `docs/` at https://landenlabs.github.io/win-widget-battery/.
 
 ---
 
@@ -247,7 +266,8 @@ WinWidgetBattery/
 │   ├── DesktopService.cs       # Wallpaper embed / Win32 window helpers
 │   ├── DeviceBatteryService.cs # Bluetooth / connected device battery polling
 │   ├── DisplayService.cs       # Per-monitor position save/restore
-│   ├── PowerInfoService.cs     # Additional power / battery details
+│   ├── PowerInfoService.cs     # Idle time + power-plan sleep/hibernate timeouts (sleep countdown)
+│   ├── WidgetGeometry.cs       # Pure drag / resize / on-screen math (unit tested)
 │   ├── SettingsService.cs      # JSON settings persistence
 │   └── TrayIconService.cs      # System tray icon and menu
 ├── ViewModels/
@@ -261,8 +281,11 @@ WinWidgetBattery/
 │   ├── landenlabs.mp4          # Animated logo (About dialog)
 │   └── landenlabs.png          # Static logo fallback
 ├── .github/
-│   ├── workflows/build.yml     # Release build: zip + signed MSIX (x64, arm64)
-│   └── scripts/build-msix.ps1  # MSIX packaging and signing
+│   ├── workflows/build.yml     # Release build: tests, zip, signed MSIX + unsigned Store MSIX (x64, arm64)
+│   └── scripts/build-msix.ps1  # MSIX packaging and signing (-Store for Partner Center)
+├── tests/WinWidgetBattery.Tests/ # xUnit tests for WidgetGeometry
+├── docs/                       # GitHub Pages site: index.md (home page), privacy.md (privacy policy)
+├── store-assets/               # Microsoft Store listing text and logo
 ├── screens/icon.png            # Source image for the MSIX logos
 ├── build.bat                   # Build and install portable exe locally
 ├── install-msix.ps1            # Trust certificate + install MSIX (end users)
@@ -274,7 +297,7 @@ WinWidgetBattery/
 
 ## Privacy
 
-No accounts, ads, analytics, telemetry or tracking. See [privacy.md](privacy.md) for exactly what the app reads, stores and (if anything) sends.
+No accounts, ads, analytics, telemetry or tracking. The [privacy policy](https://landenlabs.github.io/win-widget-battery/privacy.html) ([source](docs/privacy.md)) lists exactly what the app reads, stores and (if anything) sends.
 
 ---
 
